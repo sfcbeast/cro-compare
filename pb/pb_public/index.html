@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CRO Compare</title>
+<style>
+  :root { --bg:#f7f8fa; --fg:#1b1f24; --muted:#667085; --card:#fff; --line:#e4e7ec; --accent:#0b6bcb; --good:#067647; --warn:#b54708; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f1318; --fg:#e8eaed; --muted:#98a2b3; --card:#171c23; --line:#2a313b; --accent:#5aa9ff; --good:#4ade80; --warn:#fdb022; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui,sans-serif; }
+  main { max-width:960px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { margin:0 0 4px; font-size:24px; }
+  h2 { font-size:18px; margin:36px 0 8px; }
+  .sub { color:var(--muted); margin:0 0 20px; }
+  .controls { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin-bottom:16px; }
+  label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
+  input, select, textarea { width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--fg); font:inherit; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:10px; display:grid; grid-template-columns:1fr auto; gap:6px 16px; }
+  .card.best { border-color:var(--good); }
+  .name { font-weight:600; }
+  .meta, .note { color:var(--muted); font-size:13px; }
+  .price { text-align:right; font-weight:700; font-size:18px; }
+  .price small { display:block; font-weight:400; color:var(--muted); font-size:12px; }
+  .badge { font-size:11px; color:var(--good); border:1px solid var(--good); border-radius:99px; padding:1px 8px; margin-left:6px; }
+  .badge.warn { color:var(--warn); border-color:var(--warn); }
+  .quote { color:var(--muted); font-weight:600; font-size:14px; text-align:right; }
+  .quote small { display:block; font-weight:400; font-size:12px; color:var(--fg); }
+  .share { font-size:12px; color:var(--muted); display:flex; align-items:center; gap:4px; }
+  .share input { width:auto; }
+  a { color:var(--accent); }
+  .svc { font-weight:600; margin:22px 0 8px; color:var(--muted); font-size:13px; text-transform:uppercase; letter-spacing:.04em; }
+  .svc .range { margin-left:10px; font-weight:400; text-transform:none; letter-spacing:0; }
+  .how { color:var(--muted); font-size:14px; }
+  .how li { margin:4px 0; }
+  .actions { display:flex; gap:12px; align-items:center; justify-content:flex-end; }
+  .btn { width:auto; padding:6px 12px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--fg); font:inherit; cursor:pointer; }
+  .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  dialog { max-width:620px; width:calc(100% - 32px); border:1px solid var(--line); border-radius:12px; background:var(--card); color:var(--fg); padding:20px; }
+  dialog::backdrop { background:rgba(0,0,0,.5); }
+  .grid { display:grid; gap:10px; margin:12px 0; }
+  .chk { display:block; font-size:14px; color:var(--fg); margin:2px 0; }
+  .chk input { width:auto; margin-right:6px; }
+  .qrow { border-top:1px solid var(--line); padding:10px 0; }
+  .qform { display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:6px; margin-top:6px; }
+  footer { color:var(--muted); font-size:12px; margin-top:28px; }
+  @media (max-width:520px) { .card { grid-template-columns:1fr; } .price, .quote { text-align:left; } .actions { justify-content:flex-start; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>CRO Compare</h1>
+  <p class="sub">Find the cheapest provider for sequencing and cell-based assays. Prices come from public price lists; services with no public price are quote-only.</p>
+
+  <div class="controls">
+    <div><label for="q">Search</label><input id="q" placeholder="e.g. plasmid, RNA-seq, viability"></div>
+    <div><label for="cat">Category</label><select id="cat"><option value="">All</option></select></div>
+    <div><label for="aud">I am a</label>
+      <select id="aud"><option value="external">Academic lab (external user)</option><option value="industry">Industry / biotech</option></select></div>
+    <div><label for="qty">Number of samples</label><input id="qty" type="number" min="1" value="1"></div>
+    <div><label for="sort">Sort by</label>
+      <select id="sort"><option value="price">Lowest total price</option><option value="name">Provider name</option></select></div>
+  </div>
+
+  <div id="results"></div>
+
+  <h2>How this works</h2>
+  <ul class="how">
+    <li><b>Prices</b> are copied from each provider's own public price page and show the date they were checked. Providers without a public price are marked "Quote only".</li>
+    <li><b>Rates differ by user type.</b> Pick "Academic lab" or "Industry" above. Rates for a facility's own staff are not shown, since they don't apply to outside users.</li>
+    <li><b>Library prep vs full service:</b> some cards cover only part of the work (noted on the card), so compare like with like.</li>
+    <li><b>Community quotes:</b> if you log a quote you received and share it anonymously, others see the median for that provider.</li>
+  </ul>
+
+  <h2 id="requests-h">My quote requests</h2>
+  <p class="sub">Requests and quotes are saved in this browser only. Send the request to each provider through the contact link, then log their replies here to compare.</p>
+  <div id="requests"></div>
+
+  <dialog id="dlg">
+    <h2 id="dlgTitle" style="margin-top:0"></h2>
+    <div class="grid" id="dlgFields"></div>
+    <label>Providers to ask</label>
+    <div id="dlgProvs"></div>
+    <label style="margin-top:12px" for="dlgOut">Request text (copy and send to each provider)</label>
+    <textarea id="dlgOut" rows="8" readonly></textarea>
+    <div class="actions" style="margin-top:12px">
+      <button class="btn" id="dlgClose">Cancel</button>
+      <button class="btn" id="dlgBuild">Preview</button>
+      <button class="btn" id="dlgCopy">Copy request</button>
+      <button class="btn primary" id="dlgSave">Save to my requests</button>
+    </div>
+  </dialog>
+
+  <footer>Prices are indicative, taken from public pages (see source links) and may be out of date. Currency conversion for sorting is approximate. Always confirm with the provider.</footer>
+</main>
+<script src="data.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const cats = [...new Set(SERVICES.map(s => s.category))];
+cats.forEach(c => $("cat").add(new Option(c, c)));
+
+// Pick the tier that applies to this audience and quantity. Falls back to broader tiers and flags it.
+function pickTier(offer, aud, qty) {
+  const fits = t => qty >= (t.minQty || 1);
+  const best = list => list.filter(fits).sort((a, b) => (b.minQty || 1) - (a.minQty || 1))[0];
+  let t = best(offer.tiers.filter(t => t.for === aud));
+  if (t) return { t, exact: true };
+  t = best(offer.tiers.filter(t => t.for === "any"));
+  if (t) return { t, exact: true };
+  t = best(offer.tiers.filter(t => t.for === "external"));
+  if (t) return { t, exact: false };
+  return null;
+}
+const usd = (t, v) => v * FX_TO_USD[t.currency];
+const SYM = { USD: "$", EUR: "€", GBP: "£", CAD: "C$" };
+const fmt = (cur, v) => SYM[cur] + v.toLocaleString(undefined, { minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: 2 });
+
+function render() {
+  const q = $("q").value.trim().toLowerCase(), cat = $("cat").value, aud = $("aud").value;
+  const qty = Math.max(1, parseInt($("qty").value) || 1), sort = $("sort").value;
+  const out = [];
+  SERVICES.forEach(s => {
+    if (cat && s.category !== cat) return;
+    if (q && !(s.name + " " + s.category).toLowerCase().includes(q) &&
+        !OFFERS.some(o => o.service === s.id && o.provider.toLowerCase().includes(q))) return;
+    const rows = OFFERS.filter(o => o.service === s.id).map(o => ({ o, pick: pickTier(o, aud, qty) }));
+    rows.sort((a, b) => {
+      if (sort === "name") return a.o.provider.localeCompare(b.o.provider);
+      const pa = a.pick ? usd(a.pick.t, a.pick.t.price) : Infinity, pb = b.pick ? usd(b.pick.t, b.pick.t.price) : Infinity;
+      return pa - pb;
+    });
+    out.push({ s, rows });
+  });
+  $("results").innerHTML = out.length ? out.map(({ s, rows }) => `
+    <div class="svc">${esc(s.name)}<span class="range">${summary(rows, qty)}</span></div>
+    ${rows.map(r => card(r, sort === "price" && r === rows.find(x => x.pick && x.o.verified), qty, s.unit, s.id)).join("")}`).join("")
+    : '<p class="sub">No matching services.</p>';
+}
+
+// "5 providers · 3 priced · about $5–$25" (USD-equivalent, for a quick feel of the market)
+function summary(rows, qty) {
+  const priced = rows.filter(r => r.pick).map(r => usd(r.pick.t, r.pick.t.price));
+  const parts = [rows.length + " provider" + (rows.length > 1 ? "s" : "")];
+  if (priced.length) {
+    const lo = Math.min(...priced), hi = Math.max(...priced);
+    parts.push(priced.length + " priced", lo === hi ? "about " + fmt("USD", lo) : "about " + fmt("USD", lo) + "–" + fmt("USD", hi));
+  } else parts.push("quote only");
+  return parts.join(" · ");
+}
+
+function card({ o, pick }, isBest, qty, unit, sid) {
+  const note = [o.note, pick && !pick.exact ? "Showing the external-user rate; industry rate not listed." : "", pick && pick.t.label ? pick.t.label : ""].filter(Boolean).join(" ");
+  let price;
+  if (!pick) {
+    const c = community[sid + "|" + o.provider];
+    price = '<div class="quote">Quote only' + (c ? `<small>Community: ~${fmt("USD", c.median)} median · ${c.n} quote${c.n > 1 ? "s" : ""}${c.n > 1 ? ` (${fmt("USD", c.min)}–${fmt("USD", c.max)})` : ""}</small>` : "") + "</div>";
+  } else {
+    const t = pick.t, range = t.priceHigh ? `${fmt(t.currency, t.price)}–${fmt(t.currency, t.priceHigh)}` : fmt(t.currency, t.price);
+    price = `<div class="price">${range}<small>${unit}${qty > 1 && !t.priceHigh ? ` · ${fmt(t.currency, t.price * qty)} for ${qty}` : ""}</small></div>`;
+  }
+  return `<div class="card${isBest ? " best" : ""}">
+    <div><span class="name">${esc(o.provider)}</span>${isBest ? '<span class="badge">lowest</span>' : ""}${o.verified ? "" : '<span class="badge warn">unverified</span>'}
+      <div class="meta">${o.type} · ${o.country}${pick ? " · price checked " + VERIFIED_ON : ""}</div></div>
+    ${price}
+    <div class="note">${esc(note)}</div>
+    <div class="actions"><button class="btn" data-quote="${sid}" data-prov="${esc(o.provider)}">Request quote</button>
+      <a href="${o.source}" target="_blank" rel="noopener">Source</a></div>
+  </div>`;
+}
+// Keep filters in the URL so a search can be bookmarked or shared.
+const FILTERS = ["q", "cat", "aud", "qty", "sort"];
+try {
+  const sp = new URLSearchParams(location.hash.slice(1));
+  FILTERS.forEach(id => { if (sp.has(id)) $(id).value = sp.get(id); });
+} catch (e) { /* ignore bad hash */ }
+FILTERS.forEach(id => $(id).addEventListener("input", () => {
+  const sp = new URLSearchParams();
+  FILTERS.forEach(k => { const el = $(k), dflt = el.tagName === "SELECT" ? el.options[0].value : el.defaultValue; if (el.value && el.value !== dflt) sp.set(k, el.value); });
+  history.replaceState(null, "", sp.toString() ? "#" + sp : location.pathname);
+  render();
+}));
+
+// ---------- Quote requests (stored in this browser only) ----------
+const store = {
+  get() { try { return JSON.parse(localStorage.getItem("cro_requests") || "[]"); } catch (e) { return []; } },
+  set(v) { try { localStorage.setItem("cro_requests", JSON.stringify(v)); } catch (e) { alert("Could not save in this browser."); } }
+};
+const FIELDS = [
+  ["target", "Cell line / model", "e.g. HepG2, primary hepatocytes, HEK293 stable line"],
+  ["readout", "Assay / readout", "e.g. CellTiter-Glo viability, luciferase reporter, IC50"],
+  ["compounds", "Compounds / samples", "number, type, and amount you can supply"],
+  ["design", "Design", "concentrations, replicates, time points, controls"],
+  ["deliver", "Deliverables", "raw data, curves/IC50, report, plate maps"],
+  ["timeline", "Timeline", "e.g. results within 4 weeks"],
+  ["budget", "Budget (optional)", "approximate ceiling"],
+  ["notes", "Other notes", "anything else a provider should know"]
+];
+const BIG = ["design", "notes"];
+const dlg = $("dlg");
+let current = null;
+
+function openForm(sid, prov) {
+  const s = SERVICES.find(x => x.id === sid);
+  current = { sid };
+  $("dlgTitle").textContent = "Request a quote: " + s.name;
+  $("dlgFields").innerHTML = FIELDS.map(([k, l, p]) => BIG.includes(k)
+    ? `<div><label for="f_${k}">${l}</label><textarea id="f_${k}" rows="2" placeholder="${esc(p)}"></textarea></div>`
+    : `<div><label for="f_${k}">${l}</label><input id="f_${k}" placeholder="${esc(p)}"></div>`).join("");
+  $("dlgProvs").innerHTML = OFFERS.filter(o => o.service === sid).map(o =>
+    `<label class="chk"><input type="checkbox" value="${esc(o.provider)}" ${o.provider === prov ? "checked" : ""}>${esc(o.provider)}</label>`).join("");
+  $("dlgOut").value = "";
+  $("dlgCopy").textContent = "Copy request";
+  dlg.showModal();
+}
+
+function brief() {
+  const s = SERVICES.find(x => x.id === current.sid);
+  const lines = ["Hello,", "", "I would like a quote for: " + s.name + "."];
+  FIELDS.forEach(([k, l]) => { const v = $("f_" + k).value.trim(); if (v) lines.push(l + ": " + v); });
+  lines.push("", "Please include price, total cost, turnaround, what is included, and any minimum order.", "", "Thank you");
+  return lines.join("\n");
+}
+
+$("dlgBuild").onclick = () => { $("dlgOut").value = brief(); };
+$("dlgCopy").onclick = async () => {
+  $("dlgOut").value = brief();
+  try { await navigator.clipboard.writeText($("dlgOut").value); }
+  catch (e) { $("dlgOut").select(); document.execCommand("copy"); }
+  $("dlgCopy").textContent = "Copied";
+};
+$("dlgSave").onclick = () => {
+  const provs = [...$("dlgProvs").querySelectorAll("input:checked")].map(i => i.value);
+  if (!provs.length) return alert("Pick at least one provider.");
+  const fields = {}; FIELDS.forEach(([k]) => fields[k] = $("f_" + k).value.trim());
+  const list = store.get();
+  list.unshift({ id: Date.now(), date: new Date().toISOString().slice(0, 10), service: current.sid, fields, text: brief(), providers: provs, quotes: {} });
+  store.set(list); dlg.close(); renderRequests();
+  $("requests-h").scrollIntoView();
+};
+$("dlgClose").onclick = () => dlg.close();
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-quote]"); if (b) return openForm(b.dataset.quote, b.dataset.prov);
+  const d = e.target.closest("[data-del]");
+  if (d) { if (confirm("Delete this request?")) { store.set(store.get().filter(r => r.id != d.dataset.del)); renderRequests(); } return; }
+  const c = e.target.closest("[data-copy]");
+  if (c) { const r = store.get().find(r => r.id == c.dataset.copy); navigator.clipboard.writeText(r.text).then(() => { c.textContent = "Copied"; }); return; }
+  const sv = e.target.closest("[data-saveq]");
+  if (sv) {
+    const [id, prov] = sv.dataset.saveq.split("|"), box = sv.closest(".qrow");
+    const list = store.get(), r = list.find(r => r.id == id), price = parseFloat(box.querySelector(".qp").value);
+    if (isNaN(price)) return alert("Enter the quoted price.");
+    const q = { price, currency: box.querySelector(".qc").value, days: box.querySelector(".qd").value, notes: box.querySelector(".qn").value };
+    const share = box.querySelector(".qs").checked && !(r.quotes[prov] && r.quotes[prov].shared);
+    q.shared = !!(r.quotes[prov] && r.quotes[prov].shared);
+    r.quotes[prov] = q;
+    if (share) shareQuote(r.service, prov, q).then(ok => { q.shared = ok; store.set(list); renderRequests(); loadCommunity(); });
+    store.set(list); renderRequests();
+  }
+});
+
+function renderRequests() {
+  const list = store.get();
+  $("requests").innerHTML = list.length ? list.map(r => {
+    const s = SERVICES.find(x => x.id === r.service);
+    const got = Object.entries(r.quotes).sort((a, b) => a[1].price * FX_TO_USD[a[1].currency] - b[1].price * FX_TO_USD[b[1].currency]);
+    const cheapest = got.length > 1 ? got[0][0] : null;
+    return `<div class="card"><div><span class="name">${esc(s.name)}</span><div class="meta">${r.date} · ${r.providers.length} provider(s) · ${got.length} quote(s) logged</div></div>
+      <div class="actions"><button class="btn" data-copy="${r.id}">Copy request</button><button class="btn" data-del="${r.id}">Delete</button></div>
+      <div style="grid-column:1/-1">${r.providers.map(p => {
+        const q = r.quotes[p], o = OFFERS.find(o => o.provider === p && o.service === r.service);
+        return `<div class="qrow"><b>${esc(p)}</b> ${o ? `<a href="${o.source}" target="_blank" rel="noopener">contact page</a>` : ""}${p === cheapest ? '<span class="badge">cheapest quote</span>' : ""}
+          ${q ? `<div class="meta">Quoted ${fmt(q.currency, q.price)}${q.days ? " · " + esc(q.days) + " days" : ""}${q.notes ? " · " + esc(q.notes) : ""}</div>` : ""}
+          <div class="qform"><input class="qp" type="number" step="any" placeholder="Quoted price" value="${q ? q.price : ""}"><select class="qc">${Object.keys(FX_TO_USD).map(c => `<option ${q && q.currency === c ? "selected" : ""}>${c}</option>`).join("")}</select>
+          <input class="qd" placeholder="Days" value="${q ? esc(q.days) : ""}"><input class="qn" placeholder="Notes" value="${q ? esc(q.notes) : ""}"><button class="btn" data-saveq="${r.id}|${esc(p)}">Save</button></div>
+          ${q && q.shared ? '<div class="meta">Shared anonymously. Thank you.</div>' : '<label class="share"><input class="qs" type="checkbox" checked> Share price anonymously (no name, notes or contact details) to help others compare</label>'}</div>`;
+      }).join("")}</div></div>`;
+  }).join("") : '<p class="sub">No requests yet. Click "Request quote" on any provider.</p>';
+}
+
+// ---------- Community quotes (PocketBase; absent when the page is opened as a plain file) ----------
+let community = {};
+const API = "/api/collections/quotes/records";
+async function loadCommunity() {
+  try {
+    const res = await fetch(API + "?perPage=500&sort=-created&fields=service,provider,price,currency");
+    if (!res.ok) return;
+    const by = {};
+    (await res.json()).items.forEach(r => {
+      if (!OFFERS.some(o => o.service === r.service && o.provider === r.provider) || !FX_TO_USD[r.currency]) return;
+      (by[r.service + "|" + r.provider] = by[r.service + "|" + r.provider] || []).push(r.price * FX_TO_USD[r.currency]);
+    });
+    community = {};
+    for (const [k, v] of Object.entries(by)) {
+      v.sort((a, b) => a - b);
+      const m = v.length % 2 ? v[(v.length - 1) / 2] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2;
+      community[k] = { n: v.length, median: m, min: v[0], max: v[v.length - 1] };
+    }
+    render();
+  } catch (e) { /* offline: site still works from the built-in data */ }
+}
+async function shareQuote(service, provider, q) {
+  try {
+    const body = { service, provider, price: q.price, currency: q.currency };
+    if (q.days !== "" && !isNaN(+q.days)) body.days = +q.days;
+    const res = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    return res.ok;
+  } catch (e) { return false; }
+}
+render(); renderRequests(); loadCommunity();
+</script>
+</body>
+</html>
