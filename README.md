@@ -19,3 +19,12 @@ Migrations in `pb/pb_migrations` create the `quotes` collection and the write ra
 
 ## Publish to GitHub Pages (free)
 Commit changes, then run `./publish.ps1`. Site: https://sfcbeast.github.io/cro-compare/ (static only; community quotes need the PocketBase server).
+
+## Checks
+- `node pb/check-data.mjs` validates the catalog (run before every publish).
+- `node --no-warnings worker/test.mjs` runs the API tests against real SQLite.
+
+## More docs
+- `worker/README.md`: deploy the free hosted API (Cloudflare Worker + D1).
+- `docs/user-research-kit.md`: how to run 5 user sessions.
+- `docs/provider-outreach.md` and `docs/listings-to-confirm.csv`: contacting providers.

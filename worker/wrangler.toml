@@ -1,0 +1,12 @@
+name = "cro-compare-api"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cro-compare"
+database_id = "REPLACE_WITH_ID_PRINTED_BY_wrangler_d1_create"
+
+[vars]
+ALLOWED_ORIGINS = "https://sfcbeast.github.io,http://127.0.0.1:8091,http://localhost:8091"
+# Secrets, set with: npx wrangler secret put ADMIN_TOKEN   and   npx wrangler secret put SALT
