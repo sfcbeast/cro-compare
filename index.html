@@ -101,6 +101,14 @@
     <li><b>Community quotes:</b> if you log a quote you received and share it anonymously, others see the median for that provider.</li>
   </ul>
 
+  <h2 id="providers-h">For providers</h2>
+  <ul class="how">
+    <li><b>Listing is free.</b> Every price here was copied from a public page, with a link to the source. Nobody has paid to be listed or ranked.</li>
+    <li><b>Ranking is by price only</b> for the user type and sample count the visitor chose. If paid placement ever exists, it will be labelled and will not change the price order.</li>
+    <li><b>Correct or complete your listing:</b> send the current price page or list and we will update it. Offers that cover only part of a service (for example library prep) are marked as partial scope, so tell us if yours includes more.</li>
+  </ul>
+  <button class="btn" id="providerBtn">I represent a provider: correct or add my listing</button>
+
   <h2 id="requests-h">My quote requests</h2>
   <p class="sub">Requests and quotes are saved in this browser only. Send the request to each provider through the contact link, then log their replies here to compare.</p>
   <div id="requests"></div>
@@ -488,6 +496,10 @@ function openFeedback(kind, sid, prov) {
   fb.showModal();
 }
 $("fbOpen").onclick = e => { e.preventDefault(); openFeedback("idea"); };
+$("providerBtn").onclick = () => {
+  openFeedback("other");
+  $("fbMsg").value = "I represent: \nListing(s) to correct or add: \nLink to our current price page or list: \n";
+};
 $("fbClose").onclick = () => fb.close();
 document.addEventListener("click", e => {
   const r = e.target.closest("[data-report]"); if (!r) return;
