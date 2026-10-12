@@ -39,6 +39,7 @@
   .gbtn { text-align:left; padding:8px 10px; line-height:1.35; }
   .pline { display:grid; grid-template-columns:minmax(0,2fr) 90px auto auto; gap:8px; align-items:center; margin-bottom:6px; }
   @media (max-width:520px) { .pline { grid-template-columns:1fr 80px; } }
+  .muted-link { font-size:12px; color:var(--muted); }
   .curve { margin:0 0 12px; }
   .curve summary { cursor:pointer; color:var(--accent); font-size:13px; padding:4px 0; }
   .how { color:var(--muted); font-size:14px; }
@@ -121,8 +122,24 @@
     </div>
   </dialog>
 
-  <footer>Prices are indicative, taken from public pages (see source links) and may be out of date. Currency conversion for sorting is approximate. Always confirm with the provider.</footer>
+  <dialog id="fb">
+    <h2 style="margin-top:0">Tell us what is wrong or missing</h2>
+    <p class="sub" style="margin:0 0 10px">No account needed. Prices are checked by hand, so reports of wrong or outdated numbers are the most useful thing you can send.</p>
+    <div class="grid">
+      <div><label for="fbKind">What is this about?</label>
+        <select id="fbKind"><option value="price">A wrong or outdated price</option><option value="missing">A provider or service that is missing</option><option value="idea">An idea or feature</option><option value="other">Something else</option></select></div>
+      <div id="fbAbout" class="meta"></div>
+      <div><label for="fbMsg">Details (a link to the price page helps)</label><textarea id="fbMsg" rows="4" maxlength="2000"></textarea></div>
+      <div><label for="fbContact">Email, only if you want a reply (never shown publicly)</label><input id="fbContact" type="email" maxlength="200" autocomplete="email"></div>
+      <div style="position:absolute;left:-9999px" aria-hidden="true"><label for="fbWeb">Leave empty</label><input id="fbWeb" tabindex="-1" autocomplete="off"></div>
+    </div>
+    <div id="fbStatus" class="meta" role="status"></div>
+    <div class="actions" style="margin-top:10px"><button class="btn" id="fbClose">Close</button><button class="btn primary" id="fbSend">Send</button></div>
+  </dialog>
+
+  <footer><a href="#" id="fbOpen">Send feedback or report a wrong price</a> · Prices are indicative, taken from public pages (see source links) and may be out of date. Currency conversion for sorting is approximate. Always confirm with the provider.</footer>
 </main>
+<script src="config.js"></script>
 <script src="data.js"></script>
 <script>
 const $ = id => document.getElementById(id);
@@ -258,7 +275,8 @@ function card({ o, pick }, isBest, qty, unit, sid, aud) {
     ${price}
     <div class="note">${esc(note)}</div>
     <div class="actions"><button class="btn" data-quote="${sid}" data-prov="${esc(o.provider)}">Request quote</button>
-      <a href="${o.source}" target="_blank" rel="noopener">Source</a></div>
+      <a href="${o.source}" target="_blank" rel="noopener">Source</a>
+      <a href="#" data-report="${sid}|${esc(o.provider)}" class="muted-link">Report a problem</a></div>
   </div>`;
 }
 // Keep filters in the URL so a search can be bookmarked or shared.
@@ -459,9 +477,49 @@ function renderRequests() {
   }).join("") : '<p class="sub">No requests yet. Click "Request quote" on any provider.</p>';
 }
 
+// ---------- Feedback ----------
+const fb = $("fb");
+let fbCtx = { service: "", provider: "" };
+function openFeedback(kind, sid, prov) {
+  fbCtx = { service: sid || "", provider: prov || "" };
+  $("fbKind").value = kind;
+  $("fbAbout").textContent = prov ? "About: " + prov + (sid ? " (" + SERVICES.find(s => s.id === sid).name + ")" : "") : "";
+  $("fbMsg").value = ""; $("fbWeb").value = ""; $("fbStatus").textContent = ""; $("fbSend").disabled = false;
+  fb.showModal();
+}
+$("fbOpen").onclick = e => { e.preventDefault(); openFeedback("idea"); };
+$("fbClose").onclick = () => fb.close();
+document.addEventListener("click", e => {
+  const r = e.target.closest("[data-report]"); if (!r) return;
+  e.preventDefault();
+  const [sid, prov] = r.dataset.report.split("|");
+  openFeedback("price", sid, prov);
+});
+$("fbSend").onclick = async () => {
+  const message = $("fbMsg").value.trim();
+  if (message.length < 3) { $("fbStatus").textContent = "Please add a few words of detail."; return; }
+  if ($("fbWeb").value) { fb.close(); return; } // honeypot: a person never fills this
+  const body = { kind: $("fbKind").value, message, service: fbCtx.service, provider: fbCtx.provider, contact: $("fbContact").value.trim() };
+  $("fbSend").disabled = true; $("fbStatus").textContent = "Sending...";
+  try {
+    const res = await fetch(API_ROOT + "/feedback/records", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (res.status === 429) { $("fbStatus").textContent = "Too many submissions from this network. Please try again later."; $("fbSend").disabled = false; return; }
+    if (!res.ok) throw new Error("status " + res.status);
+    $("fbStatus").textContent = "Thank you. This has been sent."; $("fbMsg").value = "";
+  } catch (err) {
+    // No API reachable (for example the static site): fall back to a pre-filled GitHub issue.
+    const title = "[" + body.kind + "] " + (body.provider || "General");
+    const text = (body.service ? "Service: " + body.service + "\n" : "") + (body.provider ? "Provider: " + body.provider + "\n" : "") + "\n" + message;
+    $("fbStatus").innerHTML = 'The feedback server is not reachable from this page. <a target="_blank" rel="noopener" href="https://github.com/' + esc(window.REPO) +
+      "/issues/new?title=" + encodeURIComponent(title) + "&body=" + encodeURIComponent(text) + '">Open a pre-filled GitHub issue instead</a> (needs a free GitHub account).';
+    $("fbSend").disabled = false;
+  }
+};
+
 // ---------- Community quotes (PocketBase; absent when the page is opened as a plain file) ----------
 let community = {};
-const API = "/api/collections/quotes/records";
+const API_ROOT = (window.API_BASE || "") + "/api/collections";
+const API = API_ROOT + "/quotes/records";
 async function loadCommunity() {
   try {
     const res = await fetch(API + "?perPage=500&sort=-created&fields=service,provider,price,currency");
