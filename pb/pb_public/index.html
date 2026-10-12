@@ -33,6 +33,8 @@
   a { color:var(--accent); }
   .svc { font-weight:600; margin:22px 0 8px; color:var(--muted); font-size:13px; text-transform:uppercase; letter-spacing:.04em; }
   .svc .range { margin-left:10px; font-weight:400; text-transform:none; letter-spacing:0; }
+  .curve { margin:0 0 12px; }
+  .curve summary { cursor:pointer; color:var(--accent); font-size:13px; padding:4px 0; }
   .how { color:var(--muted); font-size:14px; }
   .how li { margin:4px 0; }
   .actions { display:flex; gap:12px; align-items:center; justify-content:flex-end; }
@@ -60,17 +62,22 @@
     <div><label for="aud">I am a</label>
       <select id="aud"><option value="external">Academic lab (external user)</option><option value="industry">Industry / biotech</option></select></div>
     <div><label for="qty">Number of samples</label><input id="qty" type="number" min="1" value="1"></div>
+    <div><label for="scope">Scope</label>
+      <select id="scope"><option value="all">All offers</option><option value="full">Full service only (like for like)</option></select></div>
     <div><label for="sort">Sort by</label>
       <select id="sort"><option value="price">Lowest total price</option><option value="name">Provider name</option></select></div>
   </div>
 
+  <div class="actions" style="margin:-4px 0 4px"><button class="btn" id="csv">Export this view (CSV)</button></div>
   <div id="results"></div>
 
   <h2>How this works</h2>
   <ul class="how">
     <li><b>Prices</b> are copied from each provider's own public price page and show the date they were checked. Providers without a public price are marked "Quote only".</li>
     <li><b>Rates differ by user type.</b> Pick "Academic lab" or "Industry" above. Rates for a facility's own staff are not shown, since they don't apply to outside users.</li>
-    <li><b>Library prep vs full service:</b> some cards cover only part of the work (noted on the card), so compare like with like.</li>
+    <li><b>Like for like:</b> cards marked "partial scope" cover only part of the work (for example library prep without sequencing). They are never marked "lowest", and "Full service only" hides them.</li>
+    <li><b>Volume tips:</b> when ordering a few more samples unlocks a bulk tier that costs less in total, the card says so.</li>
+    <li><b>Cost curve:</b> open it under any service to see total cost against sample count and where each provider's bulk price kicks in.</li>
     <li><b>Community quotes:</b> if you log a quote you received and share it anonymously, others see the median for that provider.</li>
   </ul>
 
@@ -120,13 +127,14 @@ const fmt = (cur, v) => SYM[cur] + v.toLocaleString(undefined, { minimumFraction
 
 function render() {
   const q = $("q").value.trim().toLowerCase(), cat = $("cat").value, aud = $("aud").value;
-  const qty = Math.max(1, parseInt($("qty").value) || 1), sort = $("sort").value;
+  const qty = Math.max(1, parseInt($("qty").value) || 1), sort = $("sort").value, scope = $("scope").value;
   const out = [];
   SERVICES.forEach(s => {
     if (cat && s.category !== cat) return;
     if (q && !(s.name + " " + s.category).toLowerCase().includes(q) &&
         !OFFERS.some(o => o.service === s.id && o.provider.toLowerCase().includes(q))) return;
-    const rows = OFFERS.filter(o => o.service === s.id).map(o => ({ o, pick: pickTier(o, aud, qty) }));
+    const rows = OFFERS.filter(o => o.service === s.id && !(scope === "full" && o.partial)).map(o => ({ o, pick: pickTier(o, aud, qty) }));
+    if (!rows.length) return;
     rows.sort((a, b) => {
       if (sort === "name") return a.o.provider.localeCompare(b.o.provider);
       const pa = a.pick ? usd(a.pick.t, a.pick.t.price) : Infinity, pb = b.pick ? usd(b.pick.t, b.pick.t.price) : Infinity;
@@ -134,11 +142,64 @@ function render() {
     });
     out.push({ s, rows });
   });
+  lastView = { out, aud, qty };
   $("results").innerHTML = out.length ? out.map(({ s, rows }) => `
     <div class="svc">${esc(s.name)}<span class="range">${summary(rows, qty)}</span></div>
-    ${rows.map(r => card(r, sort === "price" && r === rows.find(x => x.pick && x.o.verified), qty, s.unit, s.id)).join("")}`).join("")
+    ${rows.map(r => card(r, sort === "price" && r === rows.find(x => x.pick && x.o.verified && !x.o.partial), qty, s.unit, s.id, aud)).join("")}
+    ${curve(s, rows, aud, qty)}`).join("")
     : '<p class="sub">No matching services.</p>';
 }
+let lastView = { out: [], aud: "external", qty: 1 };
+const STALE_DAYS = Math.floor((Date.now() - new Date(VERIFIED_ON)) / 864e5);
+
+// If a bigger order unlocks a bulk tier whose total is lower, say so.
+function volumeTip(o, pick, qty) {
+  if (!pick || pick.t.priceHigh) return "";
+  const cur = pick.t.price * qty;
+  let best = null;
+  o.tiers.filter(t => t.for === pick.t.for && t.currency === pick.t.currency && (t.minQty || 1) > qty).forEach(t => {
+    const total = t.price * t.minQty;
+    if (total < cur && (!best || total < best.total)) best = { t, total };
+  });
+  return best ? `Tip: ordering ${best.t.minQty} samples costs ${fmt(pick.t.currency, best.total)}, less than ${fmt(pick.t.currency, cur)} for ${qty}.` : "";
+}
+
+// Total cost against sample count for providers with a full-service price. Steps show bulk tiers.
+const COLORS = ["#0b6bcb", "#d92d20", "#067647", "#b54708", "#7a5af8", "#0e9384", "#c11574"];
+function curve(s, rows, aud, qty) {
+  const lines = rows.filter(r => r.o.verified && !r.o.partial && pickTier(r.o, aud, 1) && !pickTier(r.o, aud, 1).t.priceHigh);
+  if (lines.length < 2) return "";
+  const maxN = Math.min(1000, Math.max(100, qty * 2));
+  const W = 640, H = 220, L = 52, R = 12, T = 10, B = 28;
+  const series = lines.map((r, i) => {
+    const pts = [];
+    for (let n = 1; n <= maxN; n++) { const p = pickTier(r.o, aud, n); pts.push([n, n * usd(p.t, p.t.price)]); }
+    return { name: r.o.provider, color: COLORS[i % COLORS.length], pts };
+  });
+  const maxY = Math.max(...series.map(x => x.pts[x.pts.length - 1][1]));
+  const X = n => L + (n - 1) / (maxN - 1) * (W - L - R), Y = v => T + (1 - v / maxY) * (H - T - B);
+  const paths = series.map(x => `<path d="${x.pts.map((p, i) => (i ? "L" : "M") + X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1)).join("")}" fill="none" stroke="${x.color}" stroke-width="2"/>`).join("");
+  const grid = [0, .5, 1].map(f => `<line x1="${L}" x2="${W - R}" y1="${Y(maxY * f)}" y2="${Y(maxY * f)}" stroke="var(--line)"/><text x="${L - 6}" y="${Y(maxY * f) + 4}" text-anchor="end" font-size="11" style="fill:var(--muted)">${fmt("USD", Math.round(maxY * f))}</text>`).join("");
+  const xs = [1, Math.round(maxN / 2), maxN].map(n => `<text x="${X(n)}" y="${H - 8}" text-anchor="${n === 1 ? "start" : n === maxN ? "end" : "middle"}" font-size="11" style="fill:var(--muted)">${n} samples</text>`).join("");
+  const mark = qty <= maxN ? `<line x1="${X(qty)}" x2="${X(qty)}" y1="${T}" y2="${H - B}" stroke="var(--muted)" stroke-dasharray="4 3"/>` : "";
+  const legend = series.map(x => `<span style="margin-right:14px;white-space:nowrap"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${x.color};margin-right:5px"></span>${esc(x.name)}</span>`).join("");
+  return `<details class="curve"><summary>Cost curve: total cost (USD) vs number of samples</summary>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Total cost against sample count for ${esc(s.name)}">${grid}${mark}${paths}${xs}</svg>
+    <div class="meta">${legend}</div><div class="meta">Dashed line: your sample count. Full-service, priced offers only; rates for the ${aud === "industry" ? "industry" : "academic / external"} user type.</div></details>`;
+}
+
+function exportCsv() {
+  const q = v => '"' + String(v ?? "").replace(/"/g, '""') + '"';
+  const lines = [["service", "provider", "type", "country", "user_type", "samples", "price_per_unit", "currency", "total", "partial_scope", "source"].join(",")];
+  lastView.out.forEach(({ s, rows }) => rows.forEach(({ o, pick }) => {
+    const t = pick && pick.t;
+    lines.push([s.name, o.provider, o.type, o.country, lastView.aud, lastView.qty, t ? t.price : "", t ? t.currency : "quote only", t ? +(t.price * lastView.qty).toFixed(2) : "", o.partial ? "yes" : "", o.source].map(q).join(","));
+  }));
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
+  a.download = "cro-compare.csv"; a.click(); URL.revokeObjectURL(a.href);
+}
+$("csv").onclick = exportCsv;
 
 // "5 providers · 3 priced · about $5–$25" (USD-equivalent, for a quick feel of the market)
 function summary(rows, qty) {
@@ -151,8 +212,8 @@ function summary(rows, qty) {
   return parts.join(" · ");
 }
 
-function card({ o, pick }, isBest, qty, unit, sid) {
-  const note = [o.note, pick && !pick.exact ? "Showing the external-user rate; industry rate not listed." : "", pick && pick.t.label ? pick.t.label : ""].filter(Boolean).join(" ");
+function card({ o, pick }, isBest, qty, unit, sid, aud) {
+  const note = [o.note, pick && !pick.exact ? "Showing the external-user rate; industry rate not listed." : "", pick && pick.t.label ? pick.t.label : "", volumeTip(o, pick, qty)].filter(Boolean).join(" ");
   let price;
   if (!pick) {
     const c = community[sid + "|" + o.provider];
@@ -162,8 +223,8 @@ function card({ o, pick }, isBest, qty, unit, sid) {
     price = `<div class="price">${range}<small>${unit}${qty > 1 && !t.priceHigh ? ` · ${fmt(t.currency, t.price * qty)} for ${qty}` : ""}</small></div>`;
   }
   return `<div class="card${isBest ? " best" : ""}">
-    <div><span class="name">${esc(o.provider)}</span>${isBest ? '<span class="badge">lowest</span>' : ""}${o.verified ? "" : '<span class="badge warn">unverified</span>'}
-      <div class="meta">${o.type} · ${o.country}${pick ? " · price checked " + VERIFIED_ON : ""}</div></div>
+    <div><span class="name">${esc(o.provider)}</span>${isBest ? '<span class="badge">lowest</span>' : ""}${o.verified ? "" : '<span class="badge warn">unverified</span>'}${o.partial ? '<span class="badge warn" title="Covers only part of the work; not comparable with full-service prices">partial scope</span>' : ""}
+      <div class="meta">${o.type} · ${o.country}${pick ? " · price checked " + VERIFIED_ON + (STALE_DAYS > 90 ? ` (${STALE_DAYS} days ago, confirm before ordering)` : "") : ""}</div></div>
     ${price}
     <div class="note">${esc(note)}</div>
     <div class="actions"><button class="btn" data-quote="${sid}" data-prov="${esc(o.provider)}">Request quote</button>
@@ -171,7 +232,7 @@ function card({ o, pick }, isBest, qty, unit, sid) {
   </div>`;
 }
 // Keep filters in the URL so a search can be bookmarked or shared.
-const FILTERS = ["q", "cat", "aud", "qty", "sort"];
+const FILTERS = ["q", "cat", "aud", "qty", "scope", "sort"];
 try {
   const sp = new URLSearchParams(location.hash.slice(1));
   FILTERS.forEach(id => { if (sp.has(id)) $(id).value = sp.get(id); });

@@ -61,14 +61,14 @@ window.OFFERS = [
     note: "No minimums. Results in as little as 3 days.", source: "https://www.synbiobeta.com/read/plasmidsaurus-unveils-80-rna-seq-in-as-fast-as-3-days" },
   { service: "rnaseq", provider: "UT Dallas Genome Center (stranded total RNA + rRNA removal, eukaryotic)", type: "Core facility", country: "US", verified: true,
     tiers: [{ for: "external", price: 228 }, { for: "industry", price: 258 }],
-    note: "Library prep only; sequencing is charged separately.", source: "https://cores.research.utdallas.edu/genome-center/service-and-rates" },
+    partial: true, note: "Library prep only; sequencing is charged separately.", source: "https://cores.research.utdallas.edu/genome-center/service-and-rates" },
   { service: "rnaseq", provider: "Baylor College of Medicine GARP", type: "Core facility", country: "US", verified: true, tiers: [],
     note: "Published prices ($150–$290/sample) are for internal Baylor users only. External and commercial users must email GARPcore@bcm.edu for a quote.",
     source: "https://www.bcm.edu/sites/default/files/garp_pricingwebsite_-02-10-2026.docx" },
 
   { service: "rnaseq", provider: "UNT Genomics Center (stranded mRNA library prep)", type: "Core facility", country: "US", verified: true,
     tiers: [{ for: "any", price: 150 }],
-    note: "External rate. Library prep only; sequencing is charged separately.", source: "https://research.unt.edu/resources/research-core-facilities/genomics-center/pricing.html" },
+    partial: true, note: "External rate. Library prep only; sequencing is charged separately.", source: "https://research.unt.edu/resources/research-core-facilities/genomics-center/pricing.html" },
 
   // ---- 16S / ITS amplicon ----
   { service: "amplicon", provider: "UConn MARS", type: "Core facility", country: "US", verified: true,
@@ -79,7 +79,7 @@ window.OFFERS = [
     note: "External rate, single amplicon.", source: "https://www.ndsu.edu/biotech-innovation-core/sequencing/services-and-fees" },
   { service: "amplicon", provider: "UNT Genomics Center", type: "Core facility", country: "US", verified: true,
     tiers: [{ for: "any", price: 38 }],
-    note: "External rate. Library prep only; sequencing is charged separately.", source: "https://research.unt.edu/resources/research-core-facilities/genomics-center/pricing.html" },
+    partial: true, note: "External rate. Library prep only; sequencing is charged separately.", source: "https://research.unt.edu/resources/research-core-facilities/genomics-center/pricing.html" },
 
   // ---- Plate-based cell screening ----
   { service: "screen", provider: "University of Chicago Cellular Screening Center (384-well)", type: "Core facility", country: "US", verified: true,
