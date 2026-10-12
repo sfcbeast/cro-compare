@@ -176,7 +176,8 @@ function render() {
   renderPlanner();
 }
 let lastView = { out: [], aud: "external", qty: 1 };
-const STALE_DAYS = Math.floor((Date.now() - new Date(VERIFIED_ON)) / 864e5);
+const checkedOn = o => o.checked || VERIFIED_ON;
+const ageDays = o => Math.floor((Date.now() - new Date(checkedOn(o))) / 864e5);
 
 // If a bigger order unlocks a bulk tier whose total is lower, say so.
 function volumeTip(o, pick, qty) {
@@ -243,14 +244,17 @@ function card({ o, pick }, isBest, qty, unit, sid, aud) {
   let price;
   if (!pick) {
     const c = community[sid + "|" + o.provider];
-    price = '<div class="quote">Quote only' + (c ? `<small>Community: ~${fmt("USD", c.median)} median · ${c.n} quote${c.n > 1 ? "s" : ""}${c.n > 1 ? ` (${fmt("USD", c.min)}–${fmt("USD", c.max)})` : ""}</small>` : "") + "</div>";
+    // A listed price that only starts at a minimum order is not "quote only"; say what the minimum is.
+    const entry = o.tiers.filter(t => [aud, "any", "external"].includes(t.for)).sort((a, b) => (a.minQty || 1) - (b.minQty || 1))[0];
+    const head = entry && (entry.minQty || 1) > qty ? `From ${entry.minQty} samples: ${fmt(entry.currency, entry.price)} each` : "Quote only";
+    price = `<div class="quote">${head}` + (c ?`<small>Community: ~${fmt("USD", c.median)} median · ${c.n} quote${c.n > 1 ? "s" : ""}${c.n > 1 ? ` (${fmt("USD", c.min)}–${fmt("USD", c.max)})` : ""}</small>` : "") + "</div>";
   } else {
     const t = pick.t, range = t.priceHigh ? `${fmt(t.currency, t.price)}–${fmt(t.currency, t.priceHigh)}` : fmt(t.currency, t.price);
     price = `<div class="price">${range}<small>${unit}${qty > 1 && !t.priceHigh ? ` · ${fmt(t.currency, t.price * qty)} for ${qty}` : ""}</small></div>`;
   }
   return `<div class="card${isBest ? " best" : ""}">
     <div><span class="name">${esc(o.provider)}</span>${isBest ? '<span class="badge">lowest</span>' : ""}${o.verified ? "" : '<span class="badge warn">unverified</span>'}${o.partial ? '<span class="badge warn" title="Covers only part of the work; not comparable with full-service prices">partial scope</span>' : ""}
-      <div class="meta">${o.type} · ${o.country}${o.turn ? " · turnaround: " + esc(o.turn) : ""}${pick ? " · price checked " + VERIFIED_ON + (STALE_DAYS > 90 ? ` (${STALE_DAYS} days ago, confirm before ordering)` : "") : ""}</div></div>
+      <div class="meta">${o.type} · ${o.country}${o.turn ? " · turnaround: " + esc(o.turn) : ""}${pick || o.tiers.length ? " · price checked " + checkedOn(o) + (ageDays(o) > 90 ? ` (${ageDays(o)} days ago, confirm before ordering)` : "") : ""}</div></div>
     ${price}
     <div class="note">${esc(note)}</div>
     <div class="actions"><button class="btn" data-quote="${sid}" data-prov="${esc(o.provider)}">Request quote</button>

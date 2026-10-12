@@ -109,7 +109,64 @@ window.OFFERS = [
   { service: "reporter", provider: "INDIGO Biosciences", type: "CRO", country: "US", verified: true, tiers: [],
     note: "Nuclear receptor reporter assay services.", source: "https://indigobiosciences.com/services/" },
   { service: "immunoonc", provider: "Creative Biolabs", type: "CRO", country: "US", verified: true, tiers: [],
-    note: "Immuno-oncology cell assays.", source: "https://www.creative-biolabs.com/immuno-oncology/immuno-oncology-cell-assay-services.htm" }
+    note: "Immuno-oncology cell assays.", source: "https://www.creative-biolabs.com/immuno-oncology/immuno-oncology-cell-assay-services.htm" },
+
+  // ===== Added 2026-10-12 (each read on the provider's own page; `checked` is that date) =====
+  // ---- Sanger ----
+  { service: "sanger", provider: "University of Chicago DNA Sequencing Core", type: "Core facility", country: "US", verified: true, checked: "2026-10-12",
+    tiers: [
+      { for: "external", price: 8.75 }, { for: "external", price: 5.9, minQty: 16 }, { for: "external", price: 5.0, minQty: 94 },
+      { for: "industry", price: 15.45 }, { for: "industry", price: 10.45, minQty: 16 }, { for: "industry", price: 8.85, minQty: 94 }],
+    note: "Rates effective July 1, 2026; tiers are by total reactions in the order. Start-up companies pay $11.60 / $7.85 / $6.65 at the same tiers.",
+    source: "https://voices.uchicago.edu/dnaseq/fees" },
+  { service: "sanger", provider: "Eton Bioscience", type: "Commercial", country: "US", verified: true, checked: "2026-10-12", tiers: [],
+    note: "No prices published; ask sales@etonbio.com. Failed first runs on full service are repeated at no extra charge.",
+    source: "https://etonbio.com/sequencing/dna_sequencing_pricing.php" },
+  { service: "sanger", provider: "Azenta / Genewiz", type: "Commercial", country: "US", verified: true, checked: "2026-10-12", tiers: [],
+    note: "No Sanger prices on the service page; get a quote. A 20% Sanger discount applies when bundled with Plasmid-EZ.",
+    source: "http://www.genewiz.com/public/services/sanger-sequencing" },
+
+  // ---- Whole plasmid ----
+  { service: "plasmid", provider: "Plasmidsaurus", type: "Commercial", country: "US", verified: true, checked: "2026-10-12",
+    tiers: [{ for: "any", price: 15 }],
+    note: "Plasmids under 25 kb; $30 for 25–125 kb and $60 for 125–300 kb. Includes consensus sequence, annotated map and raw reads. The page shows $ without naming the currency.",
+    source: "https://plasmidsaurus.com/plasmid_sequencing" },
+  { service: "plasmid", provider: "Azenta / Genewiz (Plasmid-EZ)", type: "Commercial", country: "US", verified: true, checked: "2026-10-12",
+    tiers: [{ for: "any", price: 10 }],
+    note: "Price shown on Azenta's Sanger service page; currency not stated.", source: "http://www.genewiz.com/public/services/sanger-sequencing" },
+  { service: "plasmid", provider: "UNSW Ramaciotti Centre", type: "Core facility", country: "AU", verified: true, checked: "2026-10-12", tiers: [],
+    note: "Page lists $30 per plasmid (currency not stated) for 2–25 kb, 3–8 business days after QC. Outside users must email for a quote.",
+    source: "https://www.unsw.edu.au/science/ramaciotti/services/whole-plasmid-sequencing" },
+
+  // ---- RNA-seq (library prep only) ----
+  { service: "rnaseq", provider: "Boise State Sequencing Core (Poly-A RNA library prep)", type: "Core facility", country: "US", verified: true, checked: "2026-10-12",
+    tiers: [{ for: "external", price: 226.4 }, { for: "industry", price: 247.28 }],
+    partial: true, note: "Library prep only. Sequencing is priced separately by flow cell.", source: "https://www.boisestate.edu/sequencing-core/home/rates/" },
+  { service: "rnaseq", provider: "Boise State Sequencing Core (total RNA library prep)", type: "Core facility", country: "US", verified: true, checked: "2026-10-12",
+    tiers: [{ for: "external", price: 277.34 }, { for: "industry", price: 302.92 }],
+    partial: true, note: "Library prep only. Sequencing is priced separately by flow cell.", source: "https://www.boisestate.edu/sequencing-core/home/rates/" },
+  { service: "rnaseq", provider: "ASU Genomics Core (Lexogen 3' mRNA library prep)", type: "Core facility", country: "US", verified: true, checked: "2026-10-12",
+    tiers: [{ for: "external", price: 108 }],
+    partial: true, note: "Academic / non-profit rate; industry rate on request. Library prep only.", source: "https://cores.research.asu.edu/genomics/rates" },
+  { service: "rnaseq", provider: "ASU Genomics Core (ribodepletion library, human/mouse/rat)", type: "Core facility", country: "US", verified: true, checked: "2026-10-12",
+    tiers: [{ for: "external", price: 242 }],
+    partial: true, note: "Academic / non-profit rate; industry rate on request. Library prep only.", source: "https://cores.research.asu.edu/genomics/rates" },
+  { service: "rnaseq", provider: "RPI Biotech (Illumina RNA/DNA library prep)", type: "Core facility", country: "US", verified: true, checked: "2026-10-12",
+    tiers: [{ for: "external", price: 268 }, { for: "industry", price: 536 }],
+    partial: true, note: "Rates valid Aug 1, 2026 to Jul 31, 2027. The page does not say what the fee includes.", source: "https://biotech.rpi.edu/equipment/library-preparation-and-bioinformatics-analysis" },
+
+  // ---- 16S / ITS amplicon ----
+  { service: "amplicon", provider: "ASU Genomics Core (16S/18S/ITS library prep)", type: "Core facility", country: "US", verified: true, checked: "2026-10-12",
+    tiers: [{ for: "external", price: 57 }, { for: "external", price: 39, minQty: 96 }, { for: "external", price: 32, minQty: 192 }],
+    partial: true, note: "Academic / non-profit rate from genomic DNA; industry rate on request. Library prep only.", source: "https://cores.research.asu.edu/genomics/rates" },
+  { service: "amplicon", provider: "Boise State Sequencing Core", type: "Core facility", country: "US", verified: true, checked: "2026-10-12",
+    tiers: [{ for: "external", price: 16.98, minQty: 100 }, { for: "industry", price: 18.68, minQty: 100 }],
+    note: "100-sample minimum. The page does not detail what is included.", source: "https://www.boisestate.edu/sequencing-core/home/rates/" },
+
+  // ---- Plate-based cell screening ----
+  { service: "screen", provider: "University of Pittsburgh Organoid Research Core", type: "Core facility", country: "US", verified: true, checked: "2026-10-12", tiers: [],
+    note: "Compound screening on patient-derived organoids; price not published (contact via iLab). Organoid vials $300 academic / $354 external; culture plate $100.",
+    source: "https://organoids.pitt.edu/services-and-pricing" }
 ];
 
 // default currency for tiers that don't specify one
