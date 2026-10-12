@@ -114,3 +114,45 @@ window.OFFERS = [
 
 // default currency for tiers that don't specify one
 window.OFFERS.forEach(o => o.tiers.forEach(t => { t.currency = t.currency || "USD"; }));
+
+// ---- Organisation (so the project planner can tell which provider covers several services) ----
+const ORG_OVERRIDE = {
+  "Plasmidsaurus 3' RNA-Seq": "Plasmidsaurus", "Novogene PlasmidGo": "Novogene", "GenScript (nanopore)": "GenScript",
+  "Nevada Genomics Center (UNR)": "Nevada Genomics Center", "MGH CCIB DNA Core": "MGH CCIB DNA Core"
+};
+window.OFFERS.forEach(o => { o.org = ORG_OVERRIDE[o.provider] || o.provider.replace(/\s*\(.*$/, "").trim(); });
+
+// ---- Turnaround, only where the provider's own page states it ----
+// key: "service|provider". days = fastest stated working/business days (used for sorting).
+const TURNAROUND = {
+  "plasmid|Eurofins Genomics (US)": { days: 1, text: "1 business day" },
+  "plasmid|Eurofins Genomics (EU)": { days: 1, text: "1–2 days (2.5–25 kb)" },
+  "plasmid|Novogene PlasmidGo": { days: 1, text: "1 day after receipt" },
+  "plasmid|GenScript (nanopore)": { days: 2, text: "2 business days" },
+  "plasmid|University of Guelph Genomics": { days: 1, text: "next day (runs Tue and Thu)" },
+  "rnaseq|Plasmidsaurus 3' RNA-Seq": { days: 3, text: "as little as 3 days" }
+};
+window.OFFERS.forEach(o => { const t = TURNAROUND[o.service + "|" + o.provider]; if (t) { o.days = t.days; o.turn = t.text; } });
+
+// ---- Per-service search words, plain-English goal, and what to ask so quotes are comparable ----
+window.SERVICE_META = {
+  sanger:   { kw: "sanger capillary dna sequencing verify clone primer walking", goal: "Check a short stretch of DNA, such as a cloning junction, insert end or PCR product.",
+              ask: ["Is the price per reaction, and are purification and the primer included, or do I supply the primer?", "What read length and quality do you guarantee, and are failed reactions repeated free?", "Are there extra charges for difficult templates (GC-rich, repeats)?"] },
+  plasmid:  { kw: "whole plasmid nanopore ont full length verify construct", goal: "Confirm a whole plasmid, including the backbone, rather than only a short region.",
+              ask: ["What size range does this price cover, and what do larger plasmids cost?", "Is an annotated map or variant call included, or only raw reads?", "What DNA amount, concentration and purity do you need?"] },
+  rnaseq:   { kw: "rna-seq rnaseq transcriptome gene expression ngs library prep", goal: "Measure which genes change between conditions or samples.",
+              ask: ["Is the price library prep only, sequencing only, or both, and what read depth per sample?", "Is analysis included (alignment, counts, differential expression)?", "What RNA quality (RIN) and amount do you need, and is there a minimum batch size?"] },
+  amplicon: { kw: "16s its amplicon microbiome metagenomics bacteria fungi community", goal: "Profile which bacteria or fungi are in a sample.",
+              ask: ["Does the price include library prep, sequencing and basic analysis?", "Which region and primers (for example V4), and how many reads per sample?", "Are controls (mock community, negatives) included or charged separately?"] },
+  ic50:     { kw: "ic50 cytotoxicity toxicity dose response tc50 cell kill potency", goal: "Find the concentration at which a compound kills or slows cells.",
+              ask: ["How many concentration points and replicates are included in the per-compound price?", "Which cell line, and who supplies it?", "Do I get raw data and curve fits, or only the IC50 number?"] },
+  screen:   { kw: "screening hts high throughput plate library compounds cell assay", goal: "Test many compounds or conditions in cells, in plate format.",
+              ask: ["What is covered by the per-plate price, and what is extra (cell line, compound plates, instrument time)?", "Is assay development charged separately?", "What are the hit-calling rules and data deliverables?"] },
+  viability:{ kw: "viability proliferation mtt atp celltiter cytotox growth", goal: "Check whether cells stay alive or keep growing after treatment.",
+              ask: ["What exactly is included (replicates, controls, report)?", "Who supplies cells, reagents and positive controls?", "What are the milestones and payment terms, and what happens if the assay needs re-running?"] },
+  reporter: { kw: "reporter luciferase nuclear receptor agonist antagonist pathway", goal: "Test whether a compound switches a receptor or pathway on or off.",
+              ask: ["Which receptor or pathway assays are available, and is agonist and antagonist mode included?", "How many concentrations and replicates are included?", "What counts as a valid run, and are repeats free if controls fail?"] },
+  immunoonc:{ kw: "immuno oncology t cell killing checkpoint pbmc car-t cytokine", goal: "Test how immune cells respond to tumour cells or a therapy.",
+              ask: ["Which effector and target cells are used, and who supplies them?", "Which readouts are included (killing, cytokines, flow)?", "What are the donor-to-donor variability controls and milestones?"] }
+};
+window.COMMON_ASK = ["What is the minimum order and the turnaround?", "Are there extra charges for industry use, shipping, or sample handling?", "Please give the total cost and a list of what is not included."];
