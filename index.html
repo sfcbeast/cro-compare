@@ -33,6 +33,12 @@
   a { color:var(--accent); }
   .svc { font-weight:600; margin:22px 0 8px; color:var(--muted); font-size:13px; text-transform:uppercase; letter-spacing:.04em; }
   .svc .range { margin-left:10px; font-weight:400; text-transform:none; letter-spacing:0; }
+  .guide { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 14px; margin-bottom:14px; }
+  .guide summary { cursor:pointer; font-weight:600; }
+  .guidebtns { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:8px; }
+  .gbtn { text-align:left; padding:8px 10px; line-height:1.35; }
+  .pline { display:grid; grid-template-columns:minmax(0,2fr) 90px auto auto; gap:8px; align-items:center; margin-bottom:6px; }
+  @media (max-width:520px) { .pline { grid-template-columns:1fr 80px; } }
   .curve { margin:0 0 12px; }
   .curve summary { cursor:pointer; color:var(--accent); font-size:13px; padding:4px 0; }
   .how { color:var(--muted); font-size:14px; }
@@ -65,17 +71,30 @@
     <div><label for="scope">Scope</label>
       <select id="scope"><option value="all">All offers</option><option value="full">Full service only (like for like)</option></select></div>
     <div><label for="sort">Sort by</label>
-      <select id="sort"><option value="price">Lowest total price</option><option value="name">Provider name</option></select></div>
+      <select id="sort"><option value="price">Lowest total price</option><option value="fast">Fastest stated turnaround</option><option value="name">Provider name</option></select></div>
   </div>
+
+  <details class="guide" id="guide">
+    <summary>Not sure which service you need?</summary>
+    <p class="sub" style="margin:8px 0">Pick the goal that sounds closest. This jumps to the matching service.</p>
+    <div id="guideBtns" class="guidebtns"></div>
+  </details>
 
   <div class="actions" style="margin:-4px 0 4px"><button class="btn" id="csv">Export this view (CSV)</button></div>
   <div id="results"></div>
+
+  <h2 id="planner-h">Project planner</h2>
+  <p class="sub">Need more than one service? Add a line for each and see the cheapest way to buy the whole project: from a single provider, or by mixing. Uses the user type above and only full-service, priced offers.</p>
+  <div id="planner"></div>
 
   <h2>How this works</h2>
   <ul class="how">
     <li><b>Prices</b> are copied from each provider's own public price page and show the date they were checked. Providers without a public price are marked "Quote only".</li>
     <li><b>Rates differ by user type.</b> Pick "Academic lab" or "Industry" above. Rates for a facility's own staff are not shown, since they don't apply to outside users.</li>
     <li><b>Like for like:</b> cards marked "partial scope" cover only part of the work (for example library prep without sequencing). They are never marked "lowest", and "Full service only" hides them.</li>
+    <li><b>Project planner:</b> add several services and see the cheapest total, from one provider or by mixing, using only full-service prices.</li>
+    <li><b>Check your quotes:</b> when you log a quote, it is compared per unit with the provider's public price or the community median, and flagged if it looks high or suspiciously low.</li>
+    <li><b>Turnaround</b> is shown only where the provider's page states it, and "Fastest" sorts by it.</li>
     <li><b>Volume tips:</b> when ordering a few more samples unlocks a bulk tier that costs less in total, the card says so.</li>
     <li><b>Cost curve:</b> open it under any service to see total cost against sample count and where each provider's bulk price kicks in.</li>
     <li><b>Community quotes:</b> if you log a quote you received and share it anonymously, others see the median for that provider.</li>
@@ -90,6 +109,8 @@
     <div class="grid" id="dlgFields"></div>
     <label>Providers to ask</label>
     <div id="dlgProvs"></div>
+    <label style="margin-top:12px">Questions that make quotes comparable (added to your request)</label>
+    <ul class="how" id="dlgAsk" style="margin:4px 0"></ul>
     <label style="margin-top:12px" for="dlgOut">Request text (copy and send to each provider)</label>
     <textarea id="dlgOut" rows="8" readonly></textarea>
     <div class="actions" style="margin-top:12px">
@@ -131,12 +152,16 @@ function render() {
   const out = [];
   SERVICES.forEach(s => {
     if (cat && s.category !== cat) return;
-    if (q && !(s.name + " " + s.category).toLowerCase().includes(q) &&
+    if (q && !(s.name + " " + s.category + " " + SERVICE_META[s.id].kw).toLowerCase().includes(q) &&
         !OFFERS.some(o => o.service === s.id && o.provider.toLowerCase().includes(q))) return;
     const rows = OFFERS.filter(o => o.service === s.id && !(scope === "full" && o.partial)).map(o => ({ o, pick: pickTier(o, aud, qty) }));
     if (!rows.length) return;
     rows.sort((a, b) => {
       if (sort === "name") return a.o.provider.localeCompare(b.o.provider);
+      if (sort === "fast") {
+        const da = a.o.days ?? Infinity, db = b.o.days ?? Infinity;
+        if (da !== db) return da - db;
+      }
       const pa = a.pick ? usd(a.pick.t, a.pick.t.price) : Infinity, pb = b.pick ? usd(b.pick.t, b.pick.t.price) : Infinity;
       return pa - pb;
     });
@@ -148,6 +173,7 @@ function render() {
     ${rows.map(r => card(r, sort === "price" && r === rows.find(x => x.pick && x.o.verified && !x.o.partial), qty, s.unit, s.id, aud)).join("")}
     ${curve(s, rows, aud, qty)}`).join("")
     : '<p class="sub">No matching services.</p>';
+  renderPlanner();
 }
 let lastView = { out: [], aud: "external", qty: 1 };
 const STALE_DAYS = Math.floor((Date.now() - new Date(VERIFIED_ON)) / 864e5);
@@ -224,7 +250,7 @@ function card({ o, pick }, isBest, qty, unit, sid, aud) {
   }
   return `<div class="card${isBest ? " best" : ""}">
     <div><span class="name">${esc(o.provider)}</span>${isBest ? '<span class="badge">lowest</span>' : ""}${o.verified ? "" : '<span class="badge warn">unverified</span>'}${o.partial ? '<span class="badge warn" title="Covers only part of the work; not comparable with full-service prices">partial scope</span>' : ""}
-      <div class="meta">${o.type} · ${o.country}${pick ? " · price checked " + VERIFIED_ON + (STALE_DAYS > 90 ? ` (${STALE_DAYS} days ago, confirm before ordering)` : "") : ""}</div></div>
+      <div class="meta">${o.type} · ${o.country}${o.turn ? " · turnaround: " + esc(o.turn) : ""}${pick ? " · price checked " + VERIFIED_ON + (STALE_DAYS > 90 ? ` (${STALE_DAYS} days ago, confirm before ordering)` : "") : ""}</div></div>
     ${price}
     <div class="note">${esc(note)}</div>
     <div class="actions"><button class="btn" data-quote="${sid}" data-prov="${esc(o.provider)}">Request quote</button>
@@ -243,6 +269,72 @@ FILTERS.forEach(id => $(id).addEventListener("input", () => {
   history.replaceState(null, "", sp.toString() ? "#" + sp : location.pathname);
   render();
 }));
+
+// ---------- "Which service do I need?" guide ----------
+$("guideBtns").innerHTML = SERVICES.map(s =>
+  `<button class="btn gbtn" data-goal="${s.id}"><b>${esc(s.name)}</b><br><span class="meta">${esc(SERVICE_META[s.id].goal)}</span></button>`).join("");
+$("guideBtns").addEventListener("click", e => {
+  const b = e.target.closest("[data-goal]"); if (!b) return;
+  $("q").value = SERVICES.find(s => s.id === b.dataset.goal).name;
+  $("q").dispatchEvent(new Event("input"));
+  $("results").scrollIntoView();
+});
+
+// ---------- Project planner ----------
+const PLAN_KEY = "cro_plan";
+let plan = (() => {
+  try {
+    const p = JSON.parse(localStorage.getItem(PLAN_KEY) || "null");
+    if (Array.isArray(p) && p.length) return p.filter(l => SERVICES.some(s => s.id === l.service)).map(l => ({ service: l.service, qty: Math.max(1, parseInt(l.qty) || 1) }));
+  } catch (e) { /* ignore */ }
+  return [{ service: "plasmid", qty: 12 }, { service: "rnaseq", qty: 6 }];
+})();
+const savePlan = () => { try { localStorage.setItem(PLAN_KEY, JSON.stringify(plan)); } catch (e) { /* storage unavailable */ } };
+
+function renderPlanner() {
+  const aud = $("aud").value;
+  const rows = plan.map(l => ({
+    l, svc: SERVICES.find(s => s.id === l.service),
+    opts: OFFERS.filter(o => o.service === l.service && o.verified && !o.partial).map(o => {
+      const pk = pickTier(o, aud, l.qty);
+      return pk && !pk.t.priceHigh ? { o, t: pk.t, cost: l.qty * usd(pk.t, pk.t.price) } : null;
+    }).filter(Boolean).sort((a, b) => a.cost - b.cost)
+  }));
+  const priced = rows.filter(r => r.opts.length), missing = rows.filter(r => !r.opts.length);
+  const lines = rows.map((r, i) => `<div class="pline">
+      <select data-pl="svc" data-i="${i}" aria-label="Service">${SERVICES.map(s => `<option value="${s.id}" ${s.id === r.l.service ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select>
+      <input type="number" min="1" data-pl="qty" data-i="${i}" value="${r.l.qty}" aria-label="Quantity, ${esc(r.svc.unit)}">
+      <span class="meta">${esc(r.svc.unit.replace("per ", ""))}s</span>
+      <button class="btn" data-pl="del" data-i="${i}">Remove</button></div>`).join("");
+  let result = "";
+  if (priced.length) {
+    const mix = priced.reduce((n, r) => n + r.opts[0].cost, 0);
+    const orgs = [...new Set(priced.flatMap(r => r.opts.map(x => x.o.org)))];
+    const single = orgs.map(org => {
+      const picks = priced.map(r => r.opts.find(x => x.o.org === org));
+      return picks.every(Boolean) ? { org, total: picks.reduce((n, x) => n + x.cost, 0) } : null;
+    }).filter(Boolean).sort((a, b) => a.total - b.total);
+    const mixLines = priced.map(r => `<li>${esc(r.svc.name)} × ${r.l.qty}: <b>${esc(r.opts[0].o.provider)}</b> (${fmt(r.opts[0].t.currency, r.opts[0].t.price)} each, about ${fmt("USD", r.opts[0].cost)})</li>`).join("");
+    result = `<div class="card" style="display:block"><div class="name">Cheapest overall (mixing providers): about ${fmt("USD", mix)}</div><ul class="how">${mixLines}</ul>
+      ${single.length ? `<div class="meta">Single provider for every line: ${single.slice(0, 4).map(x => `${esc(x.org)} about ${fmt("USD", x.total)}`).join(" · ")}${single[0].total > mix * 1.001 ? ` · mixing saves about ${fmt("USD", single[0].total - mix)}` : ""}</div>`
+        : '<div class="meta">No single provider covers every line, so you would split the order.</div>'}</div>`;
+  }
+  if (missing.length) result += `<p class="sub">No public full-service price for: ${missing.map(r => esc(r.svc.name) + " × " + r.l.qty).join("; ")}. Use "Request quote" for these.</p>`;
+  $("planner").innerHTML = lines + '<div class="actions" style="justify-content:flex-start;margin:8px 0"><button class="btn" data-pl="add">Add a line</button></div>' + result;
+}
+$("planner").addEventListener("change", e => {
+  const el = e.target.closest("[data-pl]"); if (!el) return;
+  const i = +el.dataset.i;
+  if (el.dataset.pl === "svc") plan[i].service = el.value;
+  if (el.dataset.pl === "qty") plan[i].qty = Math.max(1, parseInt(el.value) || 1);
+  savePlan(); renderPlanner();
+});
+$("planner").addEventListener("click", e => {
+  const el = e.target.closest("button[data-pl]"); if (!el) return;
+  if (el.dataset.pl === "del") plan.splice(+el.dataset.i, 1);
+  if (el.dataset.pl === "add") plan.push({ service: "sanger", qty: 1 });
+  savePlan(); renderPlanner();
+});
 
 // ---------- Quote requests (stored in this browser only) ----------
 const store = {
@@ -272,6 +364,7 @@ function openForm(sid, prov) {
     : `<div><label for="f_${k}">${l}</label><input id="f_${k}" placeholder="${esc(p)}"></div>`).join("");
   $("dlgProvs").innerHTML = OFFERS.filter(o => o.service === sid).map(o =>
     `<label class="chk"><input type="checkbox" value="${esc(o.provider)}" ${o.provider === prov ? "checked" : ""}>${esc(o.provider)}</label>`).join("");
+  $("dlgAsk").innerHTML = askList(sid).map(a => `<li>${esc(a)}</li>`).join("");
   $("dlgOut").value = "";
   $("dlgCopy").textContent = "Copy request";
   dlg.showModal();
@@ -281,9 +374,12 @@ function brief() {
   const s = SERVICES.find(x => x.id === current.sid);
   const lines = ["Hello,", "", "I would like a quote for: " + s.name + "."];
   FIELDS.forEach(([k, l]) => { const v = $("f_" + k).value.trim(); if (v) lines.push(l + ": " + v); });
-  lines.push("", "Please include price, total cost, turnaround, what is included, and any minimum order.", "", "Thank you");
+  lines.push("", "So that I can compare quotes fairly, please answer:");
+  askList(current.sid).forEach((a, i) => lines.push((i + 1) + ". " + a));
+  lines.push("", "Thank you");
   return lines.join("\n");
 }
+const askList = sid => [...SERVICE_META[sid].ask, ...COMMON_ASK];
 
 $("dlgBuild").onclick = () => { $("dlgOut").value = brief(); };
 $("dlgCopy").onclick = async () => {
@@ -313,8 +409,9 @@ document.addEventListener("click", e => {
   if (sv) {
     const [id, prov] = sv.dataset.saveq.split("|"), box = sv.closest(".qrow");
     const list = store.get(), r = list.find(r => r.id == id), price = parseFloat(box.querySelector(".qp").value);
-    if (isNaN(price)) return alert("Enter the quoted price.");
-    const q = { price, currency: box.querySelector(".qc").value, days: box.querySelector(".qd").value, notes: box.querySelector(".qn").value };
+    if (isNaN(price) || price <= 0) return alert("Enter the total quoted price.");
+    const units = Math.max(1, Math.round(parseFloat(box.querySelector(".qu").value) || 1));
+    const q = { price, units, currency: box.querySelector(".qc").value, days: box.querySelector(".qd").value, notes: box.querySelector(".qn").value };
     const share = box.querySelector(".qs").checked && !(r.quotes[prov] && r.quotes[prov].shared);
     q.shared = !!(r.quotes[prov] && r.quotes[prov].shared);
     r.quotes[prov] = q;
@@ -322,6 +419,21 @@ document.addEventListener("click", e => {
     store.set(list); renderRequests();
   }
 });
+
+// Compare a received quote (per unit) with the public price or, failing that, the community median.
+function quoteCheck(r, p, q) {
+  const o = OFFERS.find(o => o.provider === p && o.service === r.service);
+  const per = q.price / (q.units || 1) * FX_TO_USD[q.currency];
+  const pk = o && !o.partial && pickTier(o, $("aud").value, q.units || 1);
+  let ref = null, label = "";
+  if (pk && !pk.t.priceHigh) { ref = usd(pk.t, pk.t.price); label = "their public price"; }
+  else if (community[r.service + "|" + p]) { ref = community[r.service + "|" + p].median; label = "the community median"; }
+  if (!ref) return "";
+  const ratio = per / ref, note = ` (about ${fmt("USD", ref)} per unit)`;
+  if (ratio > 1.25) return Math.round((ratio - 1) * 100) + "% above " + label + note + ". Worth asking why.";
+  if (ratio < 0.8) return Math.round((1 - ratio) * 100) + "% below " + label + note + ". Check what is excluded.";
+  return "in line with " + label + note + ".";
+}
 
 function renderRequests() {
   const list = store.get();
@@ -334,8 +446,9 @@ function renderRequests() {
       <div style="grid-column:1/-1">${r.providers.map(p => {
         const q = r.quotes[p], o = OFFERS.find(o => o.provider === p && o.service === r.service);
         return `<div class="qrow"><b>${esc(p)}</b> ${o ? `<a href="${o.source}" target="_blank" rel="noopener">contact page</a>` : ""}${p === cheapest ? '<span class="badge">cheapest quote</span>' : ""}
-          ${q ? `<div class="meta">Quoted ${fmt(q.currency, q.price)}${q.days ? " · " + esc(q.days) + " days" : ""}${q.notes ? " · " + esc(q.notes) : ""}</div>` : ""}
-          <div class="qform"><input class="qp" type="number" step="any" placeholder="Quoted price" value="${q ? q.price : ""}"><select class="qc">${Object.keys(FX_TO_USD).map(c => `<option ${q && q.currency === c ? "selected" : ""}>${c}</option>`).join("")}</select>
+          ${q ? `<div class="meta">Quoted ${fmt(q.currency, q.price)} total for ${q.units || 1} unit${(q.units || 1) > 1 ? "s" : ""} (${fmt(q.currency, q.price / (q.units || 1))} each)${q.days ? " · " + esc(q.days) + " days" : ""}${q.notes ? " · " + esc(q.notes) : ""}</div>
+          ${quoteCheck(r, p, q) ? `<div class="meta">Check: ${esc(quoteCheck(r, p, q))}</div>` : ""}` : ""}
+          <div class="qform"><input class="qp" type="number" step="any" min="0" placeholder="Total quoted price" aria-label="Total quoted price" value="${q ? q.price : ""}"><input class="qu" type="number" min="1" placeholder="Units (samples)" aria-label="Number of units quoted" value="${q ? q.units || 1 : ""}"><select class="qc" aria-label="Currency">${Object.keys(FX_TO_USD).map(c => `<option ${q && q.currency === c ? "selected" : ""}>${c}</option>`).join("")}</select>
           <input class="qd" placeholder="Days" value="${q ? esc(q.days) : ""}"><input class="qn" placeholder="Notes" value="${q ? esc(q.notes) : ""}"><button class="btn" data-saveq="${r.id}|${esc(p)}">Save</button></div>
           ${q && q.shared ? '<div class="meta">Shared anonymously. Thank you.</div>' : '<label class="share"><input class="qs" type="checkbox" checked> Share price anonymously (no name, notes or contact details) to help others compare</label>'}</div>`;
       }).join("")}</div></div>`;
@@ -365,7 +478,10 @@ async function loadCommunity() {
 }
 async function shareQuote(service, provider, q) {
   try {
-    const body = { service, provider, price: q.price, currency: q.currency };
+    // Share the price per unit so quotes for different batch sizes are comparable.
+    const units = q.units || 1, per = Math.round(q.price / units * 100) / 100;
+    if (!(per >= 0.01)) return false;
+    const body = { service, provider, price: per, currency: q.currency, qty: units };
     if (q.days !== "" && !isNaN(+q.days)) body.days = +q.days;
     const res = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     return res.ok;
