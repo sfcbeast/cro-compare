@@ -187,7 +187,12 @@ const TURNAROUND = {
   "plasmid|Novogene PlasmidGo": { days: 1, text: "1 day after receipt" },
   "plasmid|GenScript (nanopore)": { days: 2, text: "2 business days" },
   "plasmid|University of Guelph Genomics": { days: 1, text: "next day (runs Tue and Thu)" },
-  "rnaseq|Plasmidsaurus 3' RNA-Seq": { days: 3, text: "as little as 3 days" }
+  "rnaseq|Plasmidsaurus 3' RNA-Seq": { days: 3, text: "as little as 3 days" },
+  // added with the 2026-10-12 batch, each stated on the provider's page
+  "plasmid|Plasmidsaurus": { days: 1, text: "1 day" },
+  "plasmid|UNSW Ramaciotti Centre": { days: 3, text: "3–8 business days after QC" },
+  "sanger|Eton Bioscience": { days: 1, text: "less than 24 hours" },
+  "sanger|Azenta / Genewiz": { days: 1, text: "1 business day after receipt" }
 };
 window.OFFERS.forEach(o => { const t = TURNAROUND[o.service + "|" + o.provider]; if (t) { o.days = t.days; o.turn = t.text; } });
 

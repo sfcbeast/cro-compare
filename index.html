@@ -4,564 +4,208 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CRO Compare</title>
-<style>
-  :root { --bg:#f7f8fa; --fg:#1b1f24; --muted:#667085; --card:#fff; --line:#e4e7ec; --accent:#0b6bcb; --good:#067647; --warn:#b54708; }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg:#0f1318; --fg:#e8eaed; --muted:#98a2b3; --card:#171c23; --line:#2a313b; --accent:#5aa9ff; --good:#4ade80; --warn:#fdb022; }
-  }
-  * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui,sans-serif; }
-  main { max-width:960px; margin:0 auto; padding:24px 16px 64px; }
-  h1 { margin:0 0 4px; font-size:24px; }
-  h2 { font-size:18px; margin:36px 0 8px; }
-  .sub { color:var(--muted); margin:0 0 20px; }
-  .controls { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin-bottom:16px; }
-  label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
-  input, select, textarea { width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--fg); font:inherit; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:10px; display:grid; grid-template-columns:1fr auto; gap:6px 16px; }
-  .card.best { border-color:var(--good); }
-  .name { font-weight:600; }
-  .meta, .note { color:var(--muted); font-size:13px; }
-  .price { text-align:right; font-weight:700; font-size:18px; }
-  .price small { display:block; font-weight:400; color:var(--muted); font-size:12px; }
-  .badge { font-size:11px; color:var(--good); border:1px solid var(--good); border-radius:99px; padding:1px 8px; margin-left:6px; }
-  .badge.warn { color:var(--warn); border-color:var(--warn); }
-  .quote { color:var(--muted); font-weight:600; font-size:14px; text-align:right; }
-  .quote small { display:block; font-weight:400; font-size:12px; color:var(--fg); }
-  .share { font-size:12px; color:var(--muted); display:flex; align-items:center; gap:4px; }
-  .share input { width:auto; }
-  a { color:var(--accent); }
-  .svc { font-weight:600; margin:22px 0 8px; color:var(--muted); font-size:13px; text-transform:uppercase; letter-spacing:.04em; }
-  .svc .range { margin-left:10px; font-weight:400; text-transform:none; letter-spacing:0; }
-  .guide { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 14px; margin-bottom:14px; }
-  .guide summary { cursor:pointer; font-weight:600; }
-  .guidebtns { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:8px; }
-  .gbtn { text-align:left; padding:8px 10px; line-height:1.35; }
-  .pline { display:grid; grid-template-columns:minmax(0,2fr) 90px auto auto; gap:8px; align-items:center; margin-bottom:6px; }
-  @media (max-width:520px) { .pline { grid-template-columns:1fr 80px; } }
-  .muted-link { font-size:12px; color:var(--muted); }
-  .curve { margin:0 0 12px; }
-  .curve summary { cursor:pointer; color:var(--accent); font-size:13px; padding:4px 0; }
-  .how { color:var(--muted); font-size:14px; }
-  .how li { margin:4px 0; }
-  .actions { display:flex; gap:12px; align-items:center; justify-content:flex-end; }
-  .btn { width:auto; padding:6px 12px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--fg); font:inherit; cursor:pointer; }
-  .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
-  dialog { max-width:620px; width:calc(100% - 32px); border:1px solid var(--line); border-radius:12px; background:var(--card); color:var(--fg); padding:20px; }
-  dialog::backdrop { background:rgba(0,0,0,.5); }
-  .grid { display:grid; gap:10px; margin:12px 0; }
-  .chk { display:block; font-size:14px; color:var(--fg); margin:2px 0; }
-  .chk input { width:auto; margin-right:6px; }
-  .qrow { border-top:1px solid var(--line); padding:10px 0; }
-  .qform { display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:6px; margin-top:6px; }
-  footer { color:var(--muted); font-size:12px; margin-top:28px; }
-  @media (max-width:520px) { .card { grid-template-columns:1fr; } .price, .quote { text-align:left; } .actions { justify-content:flex-start; } }
-</style>
+<meta name="description" content="Compare prices for sequencing and cell-based assay services across core facilities and companies. Every price is copied from the provider's own page.">
+<script>
+  // Set the theme before first paint so there is no flash.
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem("cro_theme"); } catch (e) { /* storage blocked */ }
+    if (t !== "light" && t !== "dark") t = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", t);
+  })();
+</script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b5fd1'/%3E%3Ctext x='16' y='23' font-family='Arial' font-weight='700' font-size='20' text-anchor='middle' fill='white'%3EC%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<main>
-  <h1>CRO Compare</h1>
-  <p class="sub">Find the cheapest provider for sequencing and cell-based assays. Prices come from public price lists; services with no public price are quote-only.</p>
+<a class="skip" href="#results">Skip to results</a>
 
-  <div class="controls">
-    <div><label for="q">Search</label><input id="q" placeholder="e.g. plasmid, RNA-seq, viability"></div>
-    <div><label for="cat">Category</label><select id="cat"><option value="">All</option></select></div>
-    <div><label for="aud">I am a</label>
-      <select id="aud"><option value="external">Academic lab (external user)</option><option value="industry">Industry / biotech</option></select></div>
-    <div><label for="qty">Number of samples</label><input id="qty" type="number" min="1" value="1"></div>
-    <div><label for="scope">Scope</label>
-      <select id="scope"><option value="all">All offers</option><option value="full">Full service only (like for like)</option></select></div>
-    <div><label for="sort">Sort by</label>
-      <select id="sort"><option value="price">Lowest total price</option><option value="fast">Fastest stated turnaround</option><option value="name">Provider name</option></select></div>
+<header class="top">
+  <div class="wrap topin">
+    <a class="brand" href="./" aria-label="CRO Compare home"><span class="brand-mark" aria-hidden="true">C</span>CRO Compare</a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#" data-scroll="compare">Compare</a>
+      <a href="#" data-scroll="planner-sec">Planner</a>
+      <a href="#" data-scroll="how-sec">How it works</a>
+      <a href="#" data-scroll="providers-sec">For providers</a>
+      <a href="#" data-scroll="requests-sec">My requests</a>
+    </nav>
+    <div class="topact">
+      <button class="btn sm ghost" id="themeBtn" aria-pressed="false">Dark mode</button>
+      <button class="btn sm" id="fbOpen">Feedback</button>
+    </div>
   </div>
+</header>
 
-  <details class="guide" id="guide">
-    <summary>Not sure which service you need?</summary>
-    <p class="sub" style="margin:8px 0">Pick the goal that sounds closest. This jumps to the matching service.</p>
-    <div id="guideBtns" class="guidebtns"></div>
-  </details>
-
-  <div class="actions" style="margin:-4px 0 4px"><button class="btn" id="csv">Export this view (CSV)</button></div>
-  <div id="results"></div>
-
-  <h2 id="planner-h">Project planner</h2>
-  <p class="sub">Need more than one service? Add a line for each and see the cheapest way to buy the whole project: from a single provider, or by mixing. Uses the user type above and only full-service, priced offers.</p>
-  <div id="planner"></div>
-
-  <h2>How this works</h2>
-  <ul class="how">
-    <li><b>Prices</b> are copied from each provider's own public price page and show the date they were checked. Providers without a public price are marked "Quote only".</li>
-    <li><b>Rates differ by user type.</b> Pick "Academic lab" or "Industry" above. Rates for a facility's own staff are not shown, since they don't apply to outside users.</li>
-    <li><b>Like for like:</b> cards marked "partial scope" cover only part of the work (for example library prep without sequencing). They are never marked "lowest", and "Full service only" hides them.</li>
-    <li><b>Project planner:</b> add several services and see the cheapest total, from one provider or by mixing, using only full-service prices.</li>
-    <li><b>Check your quotes:</b> when you log a quote, it is compared per unit with the provider's public price or the community median, and flagged if it looks high or suspiciously low.</li>
-    <li><b>Turnaround</b> is shown only where the provider's page states it, and "Fastest" sorts by it.</li>
-    <li><b>Volume tips:</b> when ordering a few more samples unlocks a bulk tier that costs less in total, the card says so.</li>
-    <li><b>Cost curve:</b> open it under any service to see total cost against sample count and where each provider's bulk price kicks in.</li>
-    <li><b>Community quotes:</b> if you log a quote you received and share it anonymously, others see the median for that provider.</li>
-  </ul>
-
-  <h2 id="providers-h">For providers</h2>
-  <ul class="how">
-    <li><b>Listing is free.</b> Every price here was copied from a public page, with a link to the source. Nobody has paid to be listed or ranked.</li>
-    <li><b>Ranking is by price only</b> for the user type and sample count the visitor chose. If paid placement ever exists, it will be labelled and will not change the price order.</li>
-    <li><b>Correct or complete your listing:</b> send the current price page or list and we will update it. Offers that cover only part of a service (for example library prep) are marked as partial scope, so tell us if yours includes more.</li>
-  </ul>
-  <button class="btn" id="providerBtn">I represent a provider: correct or add my listing</button>
-
-  <h2 id="requests-h">My quote requests</h2>
-  <p class="sub">Requests and quotes are saved in this browser only. Send the request to each provider through the contact link, then log their replies here to compare.</p>
-  <div id="requests"></div>
-
-  <dialog id="dlg">
-    <h2 id="dlgTitle" style="margin-top:0"></h2>
-    <div class="grid" id="dlgFields"></div>
-    <label>Providers to ask</label>
-    <div id="dlgProvs"></div>
-    <label style="margin-top:12px">Questions that make quotes comparable (added to your request)</label>
-    <ul class="how" id="dlgAsk" style="margin:4px 0"></ul>
-    <label style="margin-top:12px" for="dlgOut">Request text (copy and send to each provider)</label>
-    <textarea id="dlgOut" rows="8" readonly></textarea>
-    <div class="actions" style="margin-top:12px">
-      <button class="btn" id="dlgClose">Cancel</button>
-      <button class="btn" id="dlgBuild">Preview</button>
-      <button class="btn" id="dlgCopy">Copy request</button>
-      <button class="btn primary" id="dlgSave">Save to my requests</button>
+<main>
+  <section class="hero">
+    <div class="wrap">
+      <h1>Find the best price for lab services, without emailing five providers.</h1>
+      <p class="lede">Sequencing and cell-based assays compared across core facilities and companies. Every price is copied from the provider's own page, with its source and the date it was checked.</p>
+      <ul class="stats" id="stats" aria-label="Catalog size"></ul>
     </div>
-  </dialog>
+  </section>
 
-  <dialog id="fb">
-    <h2 style="margin-top:0">Tell us what is wrong or missing</h2>
-    <p class="sub" style="margin:0 0 10px">No account needed. Prices are checked by hand, so reports of wrong or outdated numbers are the most useful thing you can send.</p>
-    <div class="grid">
-      <div><label for="fbKind">What is this about?</label>
-        <select id="fbKind"><option value="price">A wrong or outdated price</option><option value="missing">A provider or service that is missing</option><option value="idea">An idea or feature</option><option value="other">Something else</option></select></div>
-      <div id="fbAbout" class="meta"></div>
-      <div><label for="fbMsg">Details (a link to the price page helps)</label><textarea id="fbMsg" rows="4" maxlength="2000"></textarea></div>
-      <div><label for="fbContact">Email, only if you want a reply (never shown publicly)</label><input id="fbContact" type="email" maxlength="200" autocomplete="email"></div>
-      <div style="position:absolute;left:-9999px" aria-hidden="true"><label for="fbWeb">Leave empty</label><input id="fbWeb" tabindex="-1" autocomplete="off"></div>
+  <section class="wrap" id="compare" aria-label="Compare providers">
+    <div class="chips" id="chips" role="group" aria-label="Choose a service"></div>
+
+    <div class="filters" role="search" aria-label="Filters">
+      <div class="f-search">
+        <label for="q">Search</label>
+        <input id="q" type="search" placeholder="Service or provider. Press / to search" autocomplete="off">
+      </div>
+      <div class="f-wide">
+        <span class="lbl" id="audLbl">I am a</span>
+        <div class="seg" role="radiogroup" aria-labelledby="audLbl" id="aud">
+          <button type="button" role="radio" data-aud="external" aria-checked="true">Academic lab</button>
+          <button type="button" role="radio" data-aud="industry" aria-checked="false">Industry</button>
+        </div>
+      </div>
+      <div>
+        <label for="qty">Samples</label>
+        <div class="stepper">
+          <button type="button" id="qtyDown" aria-label="Fewer samples">−</button>
+          <input id="qty" type="number" min="1" inputmode="numeric" value="1">
+          <button type="button" id="qtyUp" aria-label="More samples">+</button>
+        </div>
+      </div>
+      <div>
+        <label class="switch"><input type="checkbox" id="fullOnly" role="switch"><span class="knob" aria-hidden="true"></span><span>Full service only</span></label>
+      </div>
+      <div class="f-wide">
+        <label for="sort">Sort by</label>
+        <select id="sort">
+          <option value="price">Lowest total price</option>
+          <option value="fast">Fastest stated turnaround</option>
+          <option value="name">Provider name</option>
+        </select>
+      </div>
+      <details class="more" id="more">
+        <summary>More filters <span id="moreCount"></span></summary>
+        <div class="morebody">
+          <div><label for="region">Provider location</label><select id="region"></select></div>
+          <div><label for="type">Provider type</label><select id="type"></select></div>
+          <div><label for="budget">Budget for the whole order (USD)</label><input id="budget" type="number" min="0" inputmode="decimal" placeholder="No limit"></div>
+        </div>
+      </details>
     </div>
-    <div id="fbStatus" class="meta" role="status"></div>
-    <div class="actions" style="margin-top:10px"><button class="btn" id="fbClose">Close</button><button class="btn primary" id="fbSend">Send</button></div>
-  </dialog>
 
-  <footer><a href="#" id="fbOpen">Send feedback or report a wrong price</a> · Prices are indicative, taken from public pages (see source links) and may be out of date. Currency conversion for sorting is approximate. Always confirm with the provider.</footer>
+    <div class="resultbar">
+      <p id="resultCount" class="muted" role="status" aria-live="polite"></p>
+      <div class="tools">
+        <div class="viewtog" role="group" aria-label="Layout">
+          <button type="button" id="viewCards" aria-pressed="true">Cards</button>
+          <button type="button" id="viewTable" aria-pressed="false">Table</button>
+        </div>
+        <button class="btn sm" id="csv">Export CSV</button>
+        <button class="btn sm" id="printBtn">Print</button>
+        <button class="btn sm" id="linkBtn">Copy link</button>
+        <button class="btn sm ghost" id="clearBtn" hidden>Clear filters</button>
+      </div>
+    </div>
+
+    <div class="print-only" id="printHead"></div>
+    <div id="results"></div>
+  </section>
+
+  <section class="wrap block" id="planner-sec" aria-labelledby="planner-h">
+    <h2 id="planner-h">Project planner</h2>
+    <p class="muted">Need more than one service? Add a line for each and see the cheapest way to buy the whole project, from a single provider or by mixing. Uses the user type above and only full-service, priced offers.</p>
+    <div id="planner"></div>
+  </section>
+
+  <section class="wrap block" id="how-sec" aria-labelledby="how-h">
+    <h2 id="how-h">How this works</h2>
+    <div class="grid-cards" style="margin-top:12px">
+      <div class="info"><b>Prices come from provider pages</b><p>Each price links to its source and shows when it was checked. Providers without a public price are marked "Quote only".</p></div>
+      <div class="info"><b>Rates depend on who you are</b><p>Choose Academic or Industry. A facility's own staff rates are not shown, because they do not apply to outside users.</p></div>
+      <div class="info"><b>Like for like</b><p>Offers marked "partial scope" cover only part of the work, such as library prep without sequencing. They are never called the cheapest, and "Full service only" hides them.</p></div>
+      <div class="info"><b>Volume tips and cost curves</b><p>When ordering a few more samples unlocks a cheaper bulk tier, the card says so. The cost curve shows where each provider's bulk price starts.</p></div>
+      <div class="info"><b>Compare side by side</b><p>Tick "Compare" on up to four offers of one service to see prices, tiers, turnaround and scope in one table.</p></div>
+      <div class="info"><b>Quotes you receive</b><p>Log a quote and it is checked per unit against the public price or the community median. Sharing a quote anonymously helps other labs.</p></div>
+    </div>
+  </section>
+
+  <section class="wrap block" id="providers-sec" aria-labelledby="prov-h">
+    <h2 id="prov-h">For providers</h2>
+    <div class="grid-cards" style="margin-top:12px">
+      <div class="info"><b>Listing is free</b><p>Every price here was copied from a public page, with a link to the source. Nobody has paid to be listed or ranked.</p></div>
+      <div class="info"><b>Ranked by price only</b><p>Ranking follows the visitor's user type and sample count. If paid placement ever exists, it will be labelled and will not change the price order.</p></div>
+      <div class="info"><b>Correct or complete your listing</b><p>Send your current price page and it will be updated. Tell us if your offer covers more than the partial scope shown.</p>
+        <p style="margin-top:8px"><button class="btn sm" id="providerBtn">I represent a provider</button></p></div>
+    </div>
+  </section>
+
+  <section class="wrap block" id="requests-sec" aria-labelledby="req-h">
+    <h2 id="req-h" tabindex="-1">My quote requests</h2>
+    <p class="muted">Saved in this browser only. Send each request to the provider through its contact link, then log the replies here to compare them.</p>
+    <div id="requests" style="margin-top:12px"></div>
+  </section>
+
+  <div class="wrap">
+    <footer class="foot">
+      Prices are indicative, taken from public pages (see the source links), and may be out of date. Currency conversion is approximate and used for ranking only. Always confirm with the provider before ordering.
+      <a href="#" id="fbOpen2">Send feedback or report a wrong price</a>.
+    </footer>
+  </div>
 </main>
+
+<div class="tray" id="tray" hidden>
+  <span class="names" id="trayNames"></span>
+  <button class="btn sm primary" id="trayGo">Compare</button>
+  <button class="btn sm" id="trayClear">Clear</button>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<dialog id="guide" aria-labelledby="guideH">
+  <h2 id="guideH">Which service do you need?</h2>
+  <p class="muted">Pick the goal that sounds closest to what you are trying to do.</p>
+  <div class="goalgrid" id="goalGrid"></div>
+  <div class="actions"><button class="btn" id="guideClose">Close</button></div>
+</dialog>
+
+<dialog id="cmp" class="wide" aria-labelledby="cmpH">
+  <h2 id="cmpH">Compare side by side</h2>
+  <p class="muted small" id="cmpSub"></p>
+  <div class="tablewrap" style="margin-top:10px"><table class="sbs" id="cmpTable"></table></div>
+  <div class="actions"><button class="btn" id="cmpClose">Close</button></div>
+</dialog>
+
+<dialog id="dlg" aria-labelledby="dlgTitle">
+  <h2 id="dlgTitle"></h2>
+  <div class="dgrid" id="dlgFields"></div>
+  <label>Providers to ask</label>
+  <div id="dlgProvs"></div>
+  <label style="margin-top:12px">Questions that make quotes comparable (added to your request)</label>
+  <ul class="muted small" id="dlgAsk" style="margin:4px 0;padding-left:18px"></ul>
+  <label style="margin-top:12px" for="dlgOut">Request text (copy and send to each provider)</label>
+  <textarea id="dlgOut" rows="8" readonly></textarea>
+  <div class="actions">
+    <button class="btn" id="dlgClose">Cancel</button>
+    <button class="btn" id="dlgBuild">Preview</button>
+    <button class="btn" id="dlgCopy">Copy request</button>
+    <button class="btn primary" id="dlgSave">Save to my requests</button>
+  </div>
+</dialog>
+
+<dialog id="fb" aria-labelledby="fbH">
+  <h2 id="fbH">Tell us what is wrong or missing</h2>
+  <p class="muted small">No account needed. Prices are checked by hand, so reports of wrong or outdated numbers are the most useful thing you can send.</p>
+  <div class="dgrid">
+    <div><label for="fbKind">What is this about?</label>
+      <select id="fbKind"><option value="price">A wrong or outdated price</option><option value="missing">A provider or service that is missing</option><option value="idea">An idea or feature</option><option value="other">Something else</option></select></div>
+    <div id="fbAbout" class="muted small"></div>
+    <div><label for="fbMsg">Details (a link to the price page helps)</label><textarea id="fbMsg" rows="4" maxlength="2000"></textarea></div>
+    <div><label for="fbContact">Email, only if you want a reply (never shown publicly)</label><input id="fbContact" type="email" maxlength="200" autocomplete="email"></div>
+    <div style="position:absolute;left:-9999px" aria-hidden="true"><label for="fbWeb">Leave empty</label><input id="fbWeb" tabindex="-1" autocomplete="off"></div>
+  </div>
+  <div id="fbStatus" class="muted small" role="status"></div>
+  <div class="actions"><button class="btn" id="fbClose">Close</button><button class="btn primary" id="fbSend">Send</button></div>
+</dialog>
+
 <script src="config.js"></script>
 <script src="data.js"></script>
-<script>
-const $ = id => document.getElementById(id);
-const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const cats = [...new Set(SERVICES.map(s => s.category))];
-cats.forEach(c => $("cat").add(new Option(c, c)));
-
-// Pick the tier that applies to this audience and quantity. Falls back to broader tiers and flags it.
-function pickTier(offer, aud, qty) {
-  const fits = t => qty >= (t.minQty || 1);
-  const best = list => list.filter(fits).sort((a, b) => (b.minQty || 1) - (a.minQty || 1))[0];
-  let t = best(offer.tiers.filter(t => t.for === aud));
-  if (t) return { t, exact: true };
-  t = best(offer.tiers.filter(t => t.for === "any"));
-  if (t) return { t, exact: true };
-  t = best(offer.tiers.filter(t => t.for === "external"));
-  if (t) return { t, exact: false };
-  return null;
-}
-const usd = (t, v) => v * FX_TO_USD[t.currency];
-const SYM = { USD: "$", EUR: "€", GBP: "£", CAD: "C$" };
-const fmt = (cur, v) => SYM[cur] + v.toLocaleString(undefined, { minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: 2 });
-
-function render() {
-  const q = $("q").value.trim().toLowerCase(), cat = $("cat").value, aud = $("aud").value;
-  const qty = Math.max(1, parseInt($("qty").value) || 1), sort = $("sort").value, scope = $("scope").value;
-  const out = [];
-  SERVICES.forEach(s => {
-    if (cat && s.category !== cat) return;
-    if (q && !(s.name + " " + s.category + " " + SERVICE_META[s.id].kw).toLowerCase().includes(q) &&
-        !OFFERS.some(o => o.service === s.id && o.provider.toLowerCase().includes(q))) return;
-    const rows = OFFERS.filter(o => o.service === s.id && !(scope === "full" && o.partial)).map(o => ({ o, pick: pickTier(o, aud, qty) }));
-    if (!rows.length) return;
-    rows.sort((a, b) => {
-      if (sort === "name") return a.o.provider.localeCompare(b.o.provider);
-      if (sort === "fast") {
-        const da = a.o.days ?? Infinity, db = b.o.days ?? Infinity;
-        if (da !== db) return da - db;
-      }
-      const pa = a.pick ? usd(a.pick.t, a.pick.t.price) : Infinity, pb = b.pick ? usd(b.pick.t, b.pick.t.price) : Infinity;
-      return pa - pb;
-    });
-    out.push({ s, rows });
-  });
-  lastView = { out, aud, qty };
-  $("results").innerHTML = out.length ? out.map(({ s, rows }) => `
-    <div class="svc">${esc(s.name)}<span class="range">${summary(rows, qty)}</span></div>
-    ${rows.map(r => card(r, sort === "price" && r === rows.find(x => x.pick && x.o.verified && !x.o.partial), qty, s.unit, s.id, aud)).join("")}
-    ${curve(s, rows, aud, qty)}`).join("")
-    : '<p class="sub">No matching services.</p>';
-  renderPlanner();
-}
-let lastView = { out: [], aud: "external", qty: 1 };
-const checkedOn = o => o.checked || VERIFIED_ON;
-const ageDays = o => Math.floor((Date.now() - new Date(checkedOn(o))) / 864e5);
-
-// If a bigger order unlocks a bulk tier whose total is lower, say so.
-function volumeTip(o, pick, qty) {
-  if (!pick || pick.t.priceHigh) return "";
-  const cur = pick.t.price * qty;
-  let best = null;
-  o.tiers.filter(t => t.for === pick.t.for && t.currency === pick.t.currency && (t.minQty || 1) > qty).forEach(t => {
-    const total = t.price * t.minQty;
-    if (total < cur && (!best || total < best.total)) best = { t, total };
-  });
-  return best ? `Tip: ordering ${best.t.minQty} samples costs ${fmt(pick.t.currency, best.total)}, less than ${fmt(pick.t.currency, cur)} for ${qty}.` : "";
-}
-
-// Total cost against sample count for providers with a full-service price. Steps show bulk tiers.
-const COLORS = ["#0b6bcb", "#d92d20", "#067647", "#b54708", "#7a5af8", "#0e9384", "#c11574"];
-function curve(s, rows, aud, qty) {
-  const lines = rows.filter(r => r.o.verified && !r.o.partial && pickTier(r.o, aud, 1) && !pickTier(r.o, aud, 1).t.priceHigh);
-  if (lines.length < 2) return "";
-  const maxN = Math.min(1000, Math.max(100, qty * 2));
-  const W = 640, H = 220, L = 52, R = 12, T = 10, B = 28;
-  const series = lines.map((r, i) => {
-    const pts = [];
-    for (let n = 1; n <= maxN; n++) { const p = pickTier(r.o, aud, n); pts.push([n, n * usd(p.t, p.t.price)]); }
-    return { name: r.o.provider, color: COLORS[i % COLORS.length], pts };
-  });
-  const maxY = Math.max(...series.map(x => x.pts[x.pts.length - 1][1]));
-  const X = n => L + (n - 1) / (maxN - 1) * (W - L - R), Y = v => T + (1 - v / maxY) * (H - T - B);
-  const paths = series.map(x => `<path d="${x.pts.map((p, i) => (i ? "L" : "M") + X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1)).join("")}" fill="none" stroke="${x.color}" stroke-width="2"/>`).join("");
-  const grid = [0, .5, 1].map(f => `<line x1="${L}" x2="${W - R}" y1="${Y(maxY * f)}" y2="${Y(maxY * f)}" stroke="var(--line)"/><text x="${L - 6}" y="${Y(maxY * f) + 4}" text-anchor="end" font-size="11" style="fill:var(--muted)">${fmt("USD", Math.round(maxY * f))}</text>`).join("");
-  const xs = [1, Math.round(maxN / 2), maxN].map(n => `<text x="${X(n)}" y="${H - 8}" text-anchor="${n === 1 ? "start" : n === maxN ? "end" : "middle"}" font-size="11" style="fill:var(--muted)">${n} samples</text>`).join("");
-  const mark = qty <= maxN ? `<line x1="${X(qty)}" x2="${X(qty)}" y1="${T}" y2="${H - B}" stroke="var(--muted)" stroke-dasharray="4 3"/>` : "";
-  const legend = series.map(x => `<span style="margin-right:14px;white-space:nowrap"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${x.color};margin-right:5px"></span>${esc(x.name)}</span>`).join("");
-  return `<details class="curve"><summary>Cost curve: total cost (USD) vs number of samples</summary>
-    <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Total cost against sample count for ${esc(s.name)}">${grid}${mark}${paths}${xs}</svg>
-    <div class="meta">${legend}</div><div class="meta">Dashed line: your sample count. Full-service, priced offers only; rates for the ${aud === "industry" ? "industry" : "academic / external"} user type.</div></details>`;
-}
-
-function exportCsv() {
-  const q = v => '"' + String(v ?? "").replace(/"/g, '""') + '"';
-  const lines = [["service", "provider", "type", "country", "user_type", "samples", "price_per_unit", "currency", "total", "partial_scope", "source"].join(",")];
-  lastView.out.forEach(({ s, rows }) => rows.forEach(({ o, pick }) => {
-    const t = pick && pick.t;
-    lines.push([s.name, o.provider, o.type, o.country, lastView.aud, lastView.qty, t ? t.price : "", t ? t.currency : "quote only", t ? +(t.price * lastView.qty).toFixed(2) : "", o.partial ? "yes" : "", o.source].map(q).join(","));
-  }));
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
-  a.download = "cro-compare.csv"; a.click(); URL.revokeObjectURL(a.href);
-}
-$("csv").onclick = exportCsv;
-
-// "5 providers · 3 priced · about $5–$25" (USD-equivalent, for a quick feel of the market)
-function summary(rows, qty) {
-  const priced = rows.filter(r => r.pick).map(r => usd(r.pick.t, r.pick.t.price));
-  const parts = [rows.length + " provider" + (rows.length > 1 ? "s" : "")];
-  if (priced.length) {
-    const lo = Math.min(...priced), hi = Math.max(...priced);
-    parts.push(priced.length + " priced", lo === hi ? "about " + fmt("USD", lo) : "about " + fmt("USD", lo) + "–" + fmt("USD", hi));
-  } else parts.push("quote only");
-  return parts.join(" · ");
-}
-
-function card({ o, pick }, isBest, qty, unit, sid, aud) {
-  const note = [o.note, pick && !pick.exact ? "Showing the external-user rate; industry rate not listed." : "", pick && pick.t.label ? pick.t.label : "", volumeTip(o, pick, qty)].filter(Boolean).join(" ");
-  let price;
-  if (!pick) {
-    const c = community[sid + "|" + o.provider];
-    // A listed price that only starts at a minimum order is not "quote only"; say what the minimum is.
-    const entry = o.tiers.filter(t => [aud, "any", "external"].includes(t.for)).sort((a, b) => (a.minQty || 1) - (b.minQty || 1))[0];
-    const head = entry && (entry.minQty || 1) > qty ? `From ${entry.minQty} samples: ${fmt(entry.currency, entry.price)} each` : "Quote only";
-    price = `<div class="quote">${head}` + (c ?`<small>Community: ~${fmt("USD", c.median)} median · ${c.n} quote${c.n > 1 ? "s" : ""}${c.n > 1 ? ` (${fmt("USD", c.min)}–${fmt("USD", c.max)})` : ""}</small>` : "") + "</div>";
-  } else {
-    const t = pick.t, range = t.priceHigh ? `${fmt(t.currency, t.price)}–${fmt(t.currency, t.priceHigh)}` : fmt(t.currency, t.price);
-    price = `<div class="price">${range}<small>${unit}${qty > 1 && !t.priceHigh ? ` · ${fmt(t.currency, t.price * qty)} for ${qty}` : ""}</small></div>`;
-  }
-  return `<div class="card${isBest ? " best" : ""}">
-    <div><span class="name">${esc(o.provider)}</span>${isBest ? '<span class="badge">lowest</span>' : ""}${o.verified ? "" : '<span class="badge warn">unverified</span>'}${o.partial ? '<span class="badge warn" title="Covers only part of the work; not comparable with full-service prices">partial scope</span>' : ""}
-      <div class="meta">${o.type} · ${o.country}${o.turn ? " · turnaround: " + esc(o.turn) : ""}${pick || o.tiers.length ? " · price checked " + checkedOn(o) + (ageDays(o) > 90 ? ` (${ageDays(o)} days ago, confirm before ordering)` : "") : ""}</div></div>
-    ${price}
-    <div class="note">${esc(note)}</div>
-    <div class="actions"><button class="btn" data-quote="${sid}" data-prov="${esc(o.provider)}">Request quote</button>
-      <a href="${o.source}" target="_blank" rel="noopener">Source</a>
-      <a href="#" data-report="${sid}|${esc(o.provider)}" class="muted-link">Report a problem</a></div>
-  </div>`;
-}
-// Keep filters in the URL so a search can be bookmarked or shared.
-const FILTERS = ["q", "cat", "aud", "qty", "scope", "sort"];
-try {
-  const sp = new URLSearchParams(location.hash.slice(1));
-  FILTERS.forEach(id => { if (sp.has(id)) $(id).value = sp.get(id); });
-} catch (e) { /* ignore bad hash */ }
-FILTERS.forEach(id => $(id).addEventListener("input", () => {
-  const sp = new URLSearchParams();
-  FILTERS.forEach(k => { const el = $(k), dflt = el.tagName === "SELECT" ? el.options[0].value : el.defaultValue; if (el.value && el.value !== dflt) sp.set(k, el.value); });
-  history.replaceState(null, "", sp.toString() ? "#" + sp : location.pathname);
-  render();
-}));
-
-// ---------- "Which service do I need?" guide ----------
-$("guideBtns").innerHTML = SERVICES.map(s =>
-  `<button class="btn gbtn" data-goal="${s.id}"><b>${esc(s.name)}</b><br><span class="meta">${esc(SERVICE_META[s.id].goal)}</span></button>`).join("");
-$("guideBtns").addEventListener("click", e => {
-  const b = e.target.closest("[data-goal]"); if (!b) return;
-  $("q").value = SERVICES.find(s => s.id === b.dataset.goal).name;
-  $("q").dispatchEvent(new Event("input"));
-  $("results").scrollIntoView();
-});
-
-// ---------- Project planner ----------
-const PLAN_KEY = "cro_plan";
-let plan = (() => {
-  try {
-    const p = JSON.parse(localStorage.getItem(PLAN_KEY) || "null");
-    if (Array.isArray(p) && p.length) return p.filter(l => SERVICES.some(s => s.id === l.service)).map(l => ({ service: l.service, qty: Math.max(1, parseInt(l.qty) || 1) }));
-  } catch (e) { /* ignore */ }
-  return [{ service: "plasmid", qty: 12 }, { service: "rnaseq", qty: 6 }];
-})();
-const savePlan = () => { try { localStorage.setItem(PLAN_KEY, JSON.stringify(plan)); } catch (e) { /* storage unavailable */ } };
-
-function renderPlanner() {
-  const aud = $("aud").value;
-  const rows = plan.map(l => ({
-    l, svc: SERVICES.find(s => s.id === l.service),
-    opts: OFFERS.filter(o => o.service === l.service && o.verified && !o.partial).map(o => {
-      const pk = pickTier(o, aud, l.qty);
-      return pk && !pk.t.priceHigh ? { o, t: pk.t, cost: l.qty * usd(pk.t, pk.t.price) } : null;
-    }).filter(Boolean).sort((a, b) => a.cost - b.cost)
-  }));
-  const priced = rows.filter(r => r.opts.length), missing = rows.filter(r => !r.opts.length);
-  const lines = rows.map((r, i) => `<div class="pline">
-      <select data-pl="svc" data-i="${i}" aria-label="Service">${SERVICES.map(s => `<option value="${s.id}" ${s.id === r.l.service ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select>
-      <input type="number" min="1" data-pl="qty" data-i="${i}" value="${r.l.qty}" aria-label="Quantity, ${esc(r.svc.unit)}">
-      <span class="meta">${esc(r.svc.unit.replace("per ", ""))}s</span>
-      <button class="btn" data-pl="del" data-i="${i}">Remove</button></div>`).join("");
-  let result = "";
-  if (priced.length) {
-    const mix = priced.reduce((n, r) => n + r.opts[0].cost, 0);
-    const orgs = [...new Set(priced.flatMap(r => r.opts.map(x => x.o.org)))];
-    const single = orgs.map(org => {
-      const picks = priced.map(r => r.opts.find(x => x.o.org === org));
-      return picks.every(Boolean) ? { org, total: picks.reduce((n, x) => n + x.cost, 0) } : null;
-    }).filter(Boolean).sort((a, b) => a.total - b.total);
-    const mixLines = priced.map(r => `<li>${esc(r.svc.name)} × ${r.l.qty}: <b>${esc(r.opts[0].o.provider)}</b> (${fmt(r.opts[0].t.currency, r.opts[0].t.price)} each, about ${fmt("USD", r.opts[0].cost)})</li>`).join("");
-    result = `<div class="card" style="display:block"><div class="name">Cheapest overall (mixing providers): about ${fmt("USD", mix)}</div><ul class="how">${mixLines}</ul>
-      ${single.length ? `<div class="meta">Single provider for every line: ${single.slice(0, 4).map(x => `${esc(x.org)} about ${fmt("USD", x.total)}`).join(" · ")}${single[0].total > mix * 1.001 ? ` · mixing saves about ${fmt("USD", single[0].total - mix)}` : ""}</div>`
-        : '<div class="meta">No single provider covers every line, so you would split the order.</div>'}</div>`;
-  }
-  if (missing.length) result += `<p class="sub">No public full-service price for: ${missing.map(r => esc(r.svc.name) + " × " + r.l.qty).join("; ")}. Use "Request quote" for these.</p>`;
-  $("planner").innerHTML = lines + '<div class="actions" style="justify-content:flex-start;margin:8px 0"><button class="btn" data-pl="add">Add a line</button></div>' + result;
-}
-$("planner").addEventListener("change", e => {
-  const el = e.target.closest("[data-pl]"); if (!el) return;
-  const i = +el.dataset.i;
-  if (el.dataset.pl === "svc") plan[i].service = el.value;
-  if (el.dataset.pl === "qty") plan[i].qty = Math.max(1, parseInt(el.value) || 1);
-  savePlan(); renderPlanner();
-});
-$("planner").addEventListener("click", e => {
-  const el = e.target.closest("button[data-pl]"); if (!el) return;
-  if (el.dataset.pl === "del") plan.splice(+el.dataset.i, 1);
-  if (el.dataset.pl === "add") plan.push({ service: "sanger", qty: 1 });
-  savePlan(); renderPlanner();
-});
-
-// ---------- Quote requests (stored in this browser only) ----------
-const store = {
-  get() { try { return JSON.parse(localStorage.getItem("cro_requests") || "[]"); } catch (e) { return []; } },
-  set(v) { try { localStorage.setItem("cro_requests", JSON.stringify(v)); } catch (e) { alert("Could not save in this browser."); } }
-};
-const FIELDS = [
-  ["target", "Cell line / model", "e.g. HepG2, primary hepatocytes, HEK293 stable line"],
-  ["readout", "Assay / readout", "e.g. CellTiter-Glo viability, luciferase reporter, IC50"],
-  ["compounds", "Compounds / samples", "number, type, and amount you can supply"],
-  ["design", "Design", "concentrations, replicates, time points, controls"],
-  ["deliver", "Deliverables", "raw data, curves/IC50, report, plate maps"],
-  ["timeline", "Timeline", "e.g. results within 4 weeks"],
-  ["budget", "Budget (optional)", "approximate ceiling"],
-  ["notes", "Other notes", "anything else a provider should know"]
-];
-const BIG = ["design", "notes"];
-const dlg = $("dlg");
-let current = null;
-
-function openForm(sid, prov) {
-  const s = SERVICES.find(x => x.id === sid);
-  current = { sid };
-  $("dlgTitle").textContent = "Request a quote: " + s.name;
-  $("dlgFields").innerHTML = FIELDS.map(([k, l, p]) => BIG.includes(k)
-    ? `<div><label for="f_${k}">${l}</label><textarea id="f_${k}" rows="2" placeholder="${esc(p)}"></textarea></div>`
-    : `<div><label for="f_${k}">${l}</label><input id="f_${k}" placeholder="${esc(p)}"></div>`).join("");
-  $("dlgProvs").innerHTML = OFFERS.filter(o => o.service === sid).map(o =>
-    `<label class="chk"><input type="checkbox" value="${esc(o.provider)}" ${o.provider === prov ? "checked" : ""}>${esc(o.provider)}</label>`).join("");
-  $("dlgAsk").innerHTML = askList(sid).map(a => `<li>${esc(a)}</li>`).join("");
-  $("dlgOut").value = "";
-  $("dlgCopy").textContent = "Copy request";
-  dlg.showModal();
-}
-
-function brief() {
-  const s = SERVICES.find(x => x.id === current.sid);
-  const lines = ["Hello,", "", "I would like a quote for: " + s.name + "."];
-  FIELDS.forEach(([k, l]) => { const v = $("f_" + k).value.trim(); if (v) lines.push(l + ": " + v); });
-  lines.push("", "So that I can compare quotes fairly, please answer:");
-  askList(current.sid).forEach((a, i) => lines.push((i + 1) + ". " + a));
-  lines.push("", "Thank you");
-  return lines.join("\n");
-}
-const askList = sid => [...SERVICE_META[sid].ask, ...COMMON_ASK];
-
-$("dlgBuild").onclick = () => { $("dlgOut").value = brief(); };
-$("dlgCopy").onclick = async () => {
-  $("dlgOut").value = brief();
-  try { await navigator.clipboard.writeText($("dlgOut").value); }
-  catch (e) { $("dlgOut").select(); document.execCommand("copy"); }
-  $("dlgCopy").textContent = "Copied";
-};
-$("dlgSave").onclick = () => {
-  const provs = [...$("dlgProvs").querySelectorAll("input:checked")].map(i => i.value);
-  if (!provs.length) return alert("Pick at least one provider.");
-  const fields = {}; FIELDS.forEach(([k]) => fields[k] = $("f_" + k).value.trim());
-  const list = store.get();
-  list.unshift({ id: Date.now(), date: new Date().toISOString().slice(0, 10), service: current.sid, fields, text: brief(), providers: provs, quotes: {} });
-  store.set(list); dlg.close(); renderRequests();
-  $("requests-h").scrollIntoView();
-};
-$("dlgClose").onclick = () => dlg.close();
-
-document.addEventListener("click", e => {
-  const b = e.target.closest("[data-quote]"); if (b) return openForm(b.dataset.quote, b.dataset.prov);
-  const d = e.target.closest("[data-del]");
-  if (d) { if (confirm("Delete this request?")) { store.set(store.get().filter(r => r.id != d.dataset.del)); renderRequests(); } return; }
-  const c = e.target.closest("[data-copy]");
-  if (c) { const r = store.get().find(r => r.id == c.dataset.copy); navigator.clipboard.writeText(r.text).then(() => { c.textContent = "Copied"; }); return; }
-  const sv = e.target.closest("[data-saveq]");
-  if (sv) {
-    const [id, prov] = sv.dataset.saveq.split("|"), box = sv.closest(".qrow");
-    const list = store.get(), r = list.find(r => r.id == id), price = parseFloat(box.querySelector(".qp").value);
-    if (isNaN(price) || price <= 0) return alert("Enter the total quoted price.");
-    const units = Math.max(1, Math.round(parseFloat(box.querySelector(".qu").value) || 1));
-    const q = { price, units, currency: box.querySelector(".qc").value, days: box.querySelector(".qd").value, notes: box.querySelector(".qn").value };
-    const share = box.querySelector(".qs").checked && !(r.quotes[prov] && r.quotes[prov].shared);
-    q.shared = !!(r.quotes[prov] && r.quotes[prov].shared);
-    r.quotes[prov] = q;
-    if (share) shareQuote(r.service, prov, q).then(ok => { q.shared = ok; store.set(list); renderRequests(); loadCommunity(); });
-    store.set(list); renderRequests();
-  }
-});
-
-// Compare a received quote (per unit) with the public price or, failing that, the community median.
-function quoteCheck(r, p, q) {
-  const o = OFFERS.find(o => o.provider === p && o.service === r.service);
-  const per = q.price / (q.units || 1) * FX_TO_USD[q.currency];
-  const pk = o && !o.partial && pickTier(o, $("aud").value, q.units || 1);
-  let ref = null, label = "";
-  if (pk && !pk.t.priceHigh) { ref = usd(pk.t, pk.t.price); label = "their public price"; }
-  else if (community[r.service + "|" + p]) { ref = community[r.service + "|" + p].median; label = "the community median"; }
-  if (!ref) return "";
-  const ratio = per / ref, note = ` (about ${fmt("USD", ref)} per unit)`;
-  if (ratio > 1.25) return Math.round((ratio - 1) * 100) + "% above " + label + note + ". Worth asking why.";
-  if (ratio < 0.8) return Math.round((1 - ratio) * 100) + "% below " + label + note + ". Check what is excluded.";
-  return "in line with " + label + note + ".";
-}
-
-function renderRequests() {
-  const list = store.get();
-  $("requests").innerHTML = list.length ? list.map(r => {
-    const s = SERVICES.find(x => x.id === r.service);
-    const got = Object.entries(r.quotes).sort((a, b) => a[1].price * FX_TO_USD[a[1].currency] - b[1].price * FX_TO_USD[b[1].currency]);
-    const cheapest = got.length > 1 ? got[0][0] : null;
-    return `<div class="card"><div><span class="name">${esc(s.name)}</span><div class="meta">${r.date} · ${r.providers.length} provider(s) · ${got.length} quote(s) logged</div></div>
-      <div class="actions"><button class="btn" data-copy="${r.id}">Copy request</button><button class="btn" data-del="${r.id}">Delete</button></div>
-      <div style="grid-column:1/-1">${r.providers.map(p => {
-        const q = r.quotes[p], o = OFFERS.find(o => o.provider === p && o.service === r.service);
-        return `<div class="qrow"><b>${esc(p)}</b> ${o ? `<a href="${o.source}" target="_blank" rel="noopener">contact page</a>` : ""}${p === cheapest ? '<span class="badge">cheapest quote</span>' : ""}
-          ${q ? `<div class="meta">Quoted ${fmt(q.currency, q.price)} total for ${q.units || 1} unit${(q.units || 1) > 1 ? "s" : ""} (${fmt(q.currency, q.price / (q.units || 1))} each)${q.days ? " · " + esc(q.days) + " days" : ""}${q.notes ? " · " + esc(q.notes) : ""}</div>
-          ${quoteCheck(r, p, q) ? `<div class="meta">Check: ${esc(quoteCheck(r, p, q))}</div>` : ""}` : ""}
-          <div class="qform"><input class="qp" type="number" step="any" min="0" placeholder="Total quoted price" aria-label="Total quoted price" value="${q ? q.price : ""}"><input class="qu" type="number" min="1" placeholder="Units (samples)" aria-label="Number of units quoted" value="${q ? q.units || 1 : ""}"><select class="qc" aria-label="Currency">${Object.keys(FX_TO_USD).map(c => `<option ${q && q.currency === c ? "selected" : ""}>${c}</option>`).join("")}</select>
-          <input class="qd" placeholder="Days" value="${q ? esc(q.days) : ""}"><input class="qn" placeholder="Notes" value="${q ? esc(q.notes) : ""}"><button class="btn" data-saveq="${r.id}|${esc(p)}">Save</button></div>
-          ${q && q.shared ? '<div class="meta">Shared anonymously. Thank you.</div>' : '<label class="share"><input class="qs" type="checkbox" checked> Share price anonymously (no name, notes or contact details) to help others compare</label>'}</div>`;
-      }).join("")}</div></div>`;
-  }).join("") : '<p class="sub">No requests yet. Click "Request quote" on any provider.</p>';
-}
-
-// ---------- Feedback ----------
-const fb = $("fb");
-let fbCtx = { service: "", provider: "" };
-function openFeedback(kind, sid, prov) {
-  fbCtx = { service: sid || "", provider: prov || "" };
-  $("fbKind").value = kind;
-  $("fbAbout").textContent = prov ? "About: " + prov + (sid ? " (" + SERVICES.find(s => s.id === sid).name + ")" : "") : "";
-  $("fbMsg").value = ""; $("fbWeb").value = ""; $("fbStatus").textContent = ""; $("fbSend").disabled = false;
-  fb.showModal();
-}
-$("fbOpen").onclick = e => { e.preventDefault(); openFeedback("idea"); };
-$("providerBtn").onclick = () => {
-  openFeedback("other");
-  $("fbMsg").value = "I represent: \nListing(s) to correct or add: \nLink to our current price page or list: \n";
-};
-$("fbClose").onclick = () => fb.close();
-document.addEventListener("click", e => {
-  const r = e.target.closest("[data-report]"); if (!r) return;
-  e.preventDefault();
-  const [sid, prov] = r.dataset.report.split("|");
-  openFeedback("price", sid, prov);
-});
-$("fbSend").onclick = async () => {
-  const message = $("fbMsg").value.trim();
-  if (message.length < 3) { $("fbStatus").textContent = "Please add a few words of detail."; return; }
-  if ($("fbWeb").value) { fb.close(); return; } // honeypot: a person never fills this
-  const body = { kind: $("fbKind").value, message, service: fbCtx.service, provider: fbCtx.provider, contact: $("fbContact").value.trim() };
-  $("fbSend").disabled = true; $("fbStatus").textContent = "Sending...";
-  try {
-    const res = await fetch(API_ROOT + "/feedback/records", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    if (res.status === 429) { $("fbStatus").textContent = "Too many submissions from this network. Please try again later."; $("fbSend").disabled = false; return; }
-    if (!res.ok) throw new Error("status " + res.status);
-    $("fbStatus").textContent = "Thank you. This has been sent."; $("fbMsg").value = "";
-  } catch (err) {
-    // No API reachable (for example the static site): fall back to a pre-filled GitHub issue.
-    const title = "[" + body.kind + "] " + (body.provider || "General");
-    const text = (body.service ? "Service: " + body.service + "\n" : "") + (body.provider ? "Provider: " + body.provider + "\n" : "") + "\n" + message;
-    $("fbStatus").innerHTML = 'The feedback server is not reachable from this page. <a target="_blank" rel="noopener" href="https://github.com/' + esc(window.REPO) +
-      "/issues/new?title=" + encodeURIComponent(title) + "&body=" + encodeURIComponent(text) + '">Open a pre-filled GitHub issue instead</a> (needs a free GitHub account).';
-    $("fbSend").disabled = false;
-  }
-};
-
-// ---------- Community quotes (PocketBase; absent when the page is opened as a plain file) ----------
-let community = {};
-const API_ROOT = (window.API_BASE || "") + "/api/collections";
-const API = API_ROOT + "/quotes/records";
-async function loadCommunity() {
-  try {
-    const res = await fetch(API + "?perPage=500&sort=-created&fields=service,provider,price,currency");
-    if (!res.ok) return;
-    const by = {};
-    (await res.json()).items.forEach(r => {
-      if (!OFFERS.some(o => o.service === r.service && o.provider === r.provider) || !FX_TO_USD[r.currency]) return;
-      (by[r.service + "|" + r.provider] = by[r.service + "|" + r.provider] || []).push(r.price * FX_TO_USD[r.currency]);
-    });
-    community = {};
-    for (const [k, v] of Object.entries(by)) {
-      v.sort((a, b) => a - b);
-      const m = v.length % 2 ? v[(v.length - 1) / 2] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2;
-      community[k] = { n: v.length, median: m, min: v[0], max: v[v.length - 1] };
-    }
-    render();
-  } catch (e) { /* offline: site still works from the built-in data */ }
-}
-async function shareQuote(service, provider, q) {
-  try {
-    // Share the price per unit so quotes for different batch sizes are comparable.
-    const units = q.units || 1, per = Math.round(q.price / units * 100) / 100;
-    if (!(per >= 0.01)) return false;
-    const body = { service, provider, price: per, currency: q.currency, qty: units };
-    if (q.days !== "" && !isNaN(+q.days)) body.days = +q.days;
-    const res = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    return res.ok;
-  } catch (e) { return false; }
-}
-render(); renderRequests(); loadCommunity();
-</script>
+<script src="logic.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
