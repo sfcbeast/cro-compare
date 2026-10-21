@@ -30,8 +30,9 @@ const out = {
 };
 await ev("document.getElementById('fbOpen').click()"); await sleep(100);
 await ev("document.getElementById('fbMsg').value='live smoke test (not sent)'; document.getElementById('fbSend').click()"); await sleep(500);
-out.feedbackFallback = (await ev("document.getElementById('fbStatus').innerText")).slice(0, 80);
-const good = out.cards >= 41 && out.services === 9 && out.chips === 10 && /GitHub issue/.test(out.feedbackFallback) && problems.length === 0;
+const fbText = await ev("document.getElementById('fbStatus').innerText");
+out.feedbackFallback = fbText.slice(0, 80);
+const good = out.cards >= 41 && out.services === 9 && out.chips === 10 && /GitHub issue/.test(fbText) && problems.length === 0;
 console.log(JSON.stringify({ ...out, problems }, null, 1));
 console.log(good ? "LIVE OK" : "LIVE CHECK FAILED");
 edge.kill(); setTimeout(() => { try { rmSync(userDir, { recursive: true, force: true }); } catch {} process.exit(good ? 0 : 1); }, 500);
