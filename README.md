@@ -28,3 +28,10 @@ Commit changes, then run `./publish.ps1`. Site: https://sfcbeast.github.io/cro-c
 - `worker/README.md`: deploy the free hosted API (Cloudflare Worker + D1).
 - `docs/user-research-kit.md`: how to run 5 user sessions.
 - `docs/provider-outreach.md` and `docs/listings-to-confirm.csv`: contacting providers.
+
+## Tests (one command)
+`npm test` runs, in order: the catalog check, 57 logic tests (`pb/test-logic.mjs`), 33 API tests (`worker/test.mjs`) and 28 browser tests (`pb/e2e.mjs`).
+The browser suite starts its own throwaway PocketBase on port 8092 and a headless Edge, so it never touches your data. `SHOTS=1 node pb/e2e.mjs` also saves screenshots to `pb/shots/` for a visual review.
+
+## Code layout (`pb/pb_public/`)
+`index.html` markup · `styles.css` design tokens, components, print · `logic.js` pricing rules (no DOM, unit-tested) · `app.js` interface · `data.js` the catalog · `config.js` API address.

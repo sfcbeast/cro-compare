@@ -1,0 +1,8 @@
+{
+  "name": "cro-compare",
+  "private": true,
+  "scripts": {
+    "check": "node pb/check-data.mjs",
+    "test": "node pb/check-data.mjs && node pb/test-logic.mjs && node --no-warnings worker/test.mjs && node pb/e2e.mjs"
+  }
+}
