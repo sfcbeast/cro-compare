@@ -61,12 +61,12 @@ const eq = (a, b, what) => { if (a !== b) throw new Error(`${what || "value"}: e
 const ok = (c, what) => { if (!c) throw new Error(what || "assertion failed"); };
 
 // ============================ tests ============================
-await test("loads cleanly: 41 listings, 9 services, no console errors", async () => {
+await test("loads cleanly: 46 listings, 9 services, no console errors", async () => {
   await load("", { theme: "light" });
-  eq(await $count("#results .card"), 41, "cards");
+  eq(await $count("#results .card"), 46, "cards");
   eq(await $count("#results .svc-block"), 9, "service sections");
   eq(await $count("#chips [data-svc]"), 10, "chips (all + 9)");
-  ok((await $text("#stats")).includes("41") && (await $text("#stats")).includes("listings"), "stats");
+  ok((await $text("#stats")).includes("46") && (await $text("#stats")).includes("listings"), "stats");
   await shot("01-desktop-light");
 });
 
@@ -117,7 +117,7 @@ await test("Full service only hides partial-scope offers", async () => {
 });
 
 await test("table view shows a sortable-looking comparison table", async () => {
-  await load("#svc=plasmid&view=table&qty=10");
+  await load("#svc=plasmid&view=table&qty=10", { theme: "light" });
   eq(await $count("table.cmp"), 1, "table");
   ok((await $count("table.cmp tbody tr")) >= 8, "rows");
   ok((await $text("table.cmp thead")).toLowerCase().includes("total for 10"), "total column header");
@@ -169,7 +169,7 @@ await test("quote-only services offer one request to all providers", async () =>
 });
 
 await test("compare tray: pick offers, open side-by-side, lowest total highlighted", async () => {
-  await load("#svc=sanger&qty=50");
+  await load("#svc=sanger&qty=50", { theme: "light" });
   await ev(`document.querySelectorAll('#results [data-cmp]')[0].click()`); await sleep(80);
   eq(await ev(`document.getElementById('tray').hidden`), false, "tray visible");
   eq(await ev(`document.getElementById('trayGo').disabled`), true, "needs two");
@@ -193,6 +193,26 @@ await test("compare is limited to 4 and to one service", async () => {
   await click('#chips [data-svc=""]'); await sleep(100);
   await ev(`document.querySelector('#svc-plasmid [data-cmp]').click()`); await sleep(100);
   eq(await $count("#results [data-cmp]:checked"), 1, "new service starts a fresh comparison");
+});
+
+await test("first-unit pricing shows the first-sample price and the right total", async () => {
+  const cardText = name => ev(`[...document.querySelectorAll('#results .card')].find(c => c.innerText.includes(${JSON.stringify(name)})).innerText`);
+  await load("#svc=immunoonc&qty=5");
+  const five = await cardText("UCLA");
+  ok(five.includes("$423.80") && five.includes("$633.70") && five.includes("$2,328.90 for 5"), five.slice(0, 240));
+  await load("#svc=immunoonc&qty=1");
+  const one = await cardText("UCLA");
+  ok(one.includes("$633.70 for 1"), "one sample costs the first-unit price: " + one.slice(0, 200));
+});
+
+await test("batch-size tiers: Iowa microbiome price falls with batch size and industry is flagged", async () => {
+  const cardText = name => ev(`[...document.querySelectorAll('#results .card')].find(c => c.innerText.includes(${JSON.stringify(name)})).innerText`);
+  await load("#svc=amplicon&qty=200");
+  const c = await cardText("University of Iowa");
+  ok(c.includes("$34.70") && c.includes("$6,940 for 200"), c.slice(0, 220));
+  await load("#svc=amplicon&qty=200&aud=industry");
+  const i = await cardText("University of Iowa");
+  ok(i.includes("Industry rate not listed"), "flag: " + i.slice(0, 200));
 });
 
 await test("project planner computes and edits", async () => {
@@ -347,6 +367,8 @@ await test("screenshots of key states (only with SHOTS=1)", async () => {
   await load("#svc=plasmid&qty=10", { theme: "light", height: 1500 }); await shot("07-plasmid-cards");
   await load("#svc=plasmid&qty=10", { theme: "dark", height: 1500 }); await shot("07b-plasmid-cards-dark");
   await load("#svc=rnaseq", { theme: "light", height: 1500 }); await shot("08-rnaseq");
+  await load("#svc=immunoonc&qty=5", { theme: "light", height: 1000 }); await shot("14-first-unit");
+  await load("#svc=amplicon&qty=200&aud=industry", { theme: "light", height: 1500 }); await shot("15-amplicon-tiers");
   await load("#svc=viability", { theme: "light", height: 1100 }); await shot("09-quote-only");
   await load("#svc=viability", { theme: "light", height: 2900 }); await shot("10-lower-sections");
   await load("#svc=sanger&view=table&qty=50", { theme: "light", height: 1100 }); await shot("11-table-sanger");

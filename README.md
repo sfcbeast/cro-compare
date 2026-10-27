@@ -30,7 +30,7 @@ Commit changes, then run `./publish.ps1`. Site: https://sfcbeast.github.io/cro-c
 - `docs/provider-outreach.md` and `docs/listings-to-confirm.csv`: contacting providers.
 
 ## Tests (one command)
-`npm test` runs, in order: the catalog check, 57 logic tests (`pb/test-logic.mjs`), 33 API tests (`worker/test.mjs`) and 28 browser tests (`pb/e2e.mjs`).
+`npm test` runs, in order: the catalog check, 76 logic tests (`pb/test-logic.mjs`), 33 API tests (`worker/test.mjs`) and 30 browser tests (`pb/e2e.mjs`).
 The browser suite starts its own throwaway PocketBase on port 8092 and a headless Edge, so it never touches your data. `SHOTS=1 node pb/e2e.mjs` also saves screenshots to `pb/shots/` for a visual review.
 
 ## Code layout (`pb/pb_public/`)

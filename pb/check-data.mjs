@@ -19,6 +19,7 @@ for (const o of OFFERS) {
     if (!(t.price > 0)) errs.push(`${id}: bad price ${t.price}`);
     if (!FX_TO_USD[t.currency]) errs.push(`${id}: unknown currency ${t.currency}`);
     if (t.minQty !== undefined && !(Number.isInteger(t.minQty) && t.minQty > 1)) errs.push(`${id}: bad minQty`);
+    if (t.first !== undefined && !(t.first >= t.price)) errs.push(`${id}: first-unit price must be a number at least the per-unit price`);
   }
   // each audience's tiers must have a base tier (no minQty) or the card would hide the price for small orders silently
   for (const a of FOR) {

@@ -171,8 +171,8 @@
     const unitWord = esc(s.unit);
     if (r.pick) {
       const t = r.pick.t, range = t.priceHigh ? `${fmt(t.currency, t.price)}–${fmt(t.currency, t.priceHigh)}` : fmt(t.currency, t.price);
-      return `<div class="price"><span class="amt">${range}</span><span class="per">${unitWord}</span>` +
-        (S.qty > 1 && !t.priceHigh ? `<span class="tot">${fmt(t.currency, t.price * S.qty)} for ${S.qty}</span>` : "") +
+      return `<div class="price"><span class="amt">${range}</span><span class="per">${unitWord}${t.first != null ? ` (the first one ${fmt(t.currency, t.first)})` : ""}</span>` +
+        ((S.qty > 1 || t.first != null) && !t.priceHigh ? `<span class="tot">${fmt(t.currency, L.lineCost(t, S.qty))} for ${S.qty}</span>` : "") +
         (t.currency !== "USD" ? `<span class="usdeq">≈ ${fmt("USD", r.total)}${S.qty > 1 ? " total" : ""}</span>` : "") + `</div>`;
     }
     const c = community[offerKey(r.o)], entry = L.entryTier(r.o, S.aud);
@@ -183,7 +183,7 @@
 
   function tiersHTML(o) {
     if (o.tiers.length < 2) return "";
-    const rows = L.tierTable(o).map(t => `<tr><td>${esc(t.who)}</td><td class="num">${t.from > 1 ? "from " + t.from : "any"}</td><td class="num">${fmt(t.currency, t.price)}</td></tr>`).join("");
+    const rows = L.tierTable(o).map(t => `<tr><td>${esc(t.who)}</td><td class="num">${t.from > 1 ? "from " + t.from : "any"}</td><td class="num">${fmt(t.currency, t.price)}${t.first != null ? ` (first ${fmt(t.currency, t.first)})` : ""}</td></tr>`).join("");
     return `<details class="tiers"><summary>All price tiers</summary><table class="mini"><thead><tr><th>Who</th><th class="num">Samples</th><th class="num">Price each</th></tr></thead><tbody>${rows}</tbody></table></details>`;
   }
 
@@ -206,7 +206,7 @@
     const body = rows.map(r => {
       const o = r.o, key = offerKey(o), t = r.pick && r.pick.t, cheapest = isCheapest(r);
       const entry = L.entryTier(o, S.aud);
-      const unitCell = t ? fmt(t.currency, t.price) + (t.currency !== "USD" ? `<span class="sm">≈ ${fmt("USD", r.unit)}</span>` : "")
+      const unitCell = t ? fmt(t.currency, t.price) + (t.first != null ? `<span class="sm">first one ${fmt(t.currency, t.first)}</span>` : "") + (t.currency !== "USD" ? `<span class="sm">≈ ${fmt("USD", r.unit)}</span>` : "")
         : (entry && (entry.minQty || 1) > S.qty ? `<span class="sm">from ${entry.minQty}: ${fmt(entry.currency, entry.price)}</span>Quote only` : "Quote only");
       return `<tr class="${cheapest ? "best-row" : ""}${r.overBudget ? " over" : ""}">
         <td><input type="checkbox" data-cmp="${esc(key)}" aria-label="Compare ${esc(o.provider)}" ${compare.includes(key) ? "checked" : ""}></td>
@@ -269,7 +269,7 @@
     $("cmpTable").innerHTML = `<thead><tr><th scope="col"><span class="sr-only">Attribute</span></th>${items.map(i => `<th scope="col">${esc(i.o.provider)}</th>`).join("")}</tr></thead><tbody>` +
       row("Price each", i => i.r.pick ? fmt(i.r.pick.t.currency, i.r.pick.t.price) + (i.r.pick.t.currency !== "USD" ? ` (≈ ${fmt("USD", i.r.unit)})` : "") : "Quote only") +
       row(`Total for ${S.qty}`, i => i.r.total != null ? fmt("USD", i.r.total) : "–", i => (win != null && i.r.total === win ? "win" : "")) +
-      row("Price tiers", i => i.o.tiers.length ? L.tierTable(i.o).map(t => `${esc(t.who)}${t.from > 1 ? " from " + t.from : ""}: ${fmt(t.currency, t.price)}`).join("<br>") : "None published") +
+      row("Price tiers", i => i.o.tiers.length ? L.tierTable(i.o).map(t => `${esc(t.who)}${t.from > 1 ? " from " + t.from : ""}: ${fmt(t.currency, t.price)}${t.first != null ? ` (first ${fmt(t.currency, t.first)})` : ""}`).join("<br>") : "None published") +
       row("Turnaround", i => i.o.turn ? esc(i.o.turn) : "Not stated") +
       row("Scope", i => i.o.partial ? "Partial: " + esc(i.o.note || "") : "Full service") +
       row("Type and place", i => esc(i.o.type) + " · " + esc(COUNTRY[i.o.country] || i.o.country)) +

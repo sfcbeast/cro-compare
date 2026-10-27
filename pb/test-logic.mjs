@@ -17,6 +17,9 @@ check("fmt whole dollars", L.fmt("USD", 5) === "$5");
 check("fmt cents", L.fmt("USD", 5.5) === "$5.50");
 check("fmt thousands", L.fmt("USD", 1423.5) === "$1,423.50");
 check("fmt CAD symbol", L.fmt("CAD", 19.5) === "C$19.50");
+check("fmt ignores floating-point noise (34.7 x 200 -> $6,940)", L.fmt("USD", 34.7 * 200) === "$6,940", L.fmt("USD", 34.7 * 200));
+check("fmt ignores noise below a cent (0.1 + 0.2 -> $0.30)", L.fmt("USD", 0.1 + 0.2) === "$0.30");
+check("fmt rounds half-cents sensibly (14.235 -> $14.24)", L.fmt("USD", 14.235) === "$14.24" || L.fmt("USD", 14.235) === "$14.23");
 
 // ---- tiers
 const chi = offer("sanger", "University of Chicago DNA Sequencing Core");
@@ -118,6 +121,34 @@ check("csv: header + one line per offer", csv.split("\n").length === 1 + g[0].ro
 check("csv: quote-only rows say so", csv.includes('"quote only"'));
 const tricky = { s: { name: "Svc" }, rows: [{ o: { provider: 'He said "hi", twice', type: "CRO", country: "US", source: "https://x.test" }, pick: null }] };
 check("csv: embedded quotes and commas are escaped", L.csvFor([tricky], ST()).includes('"He said ""hi"", twice"'));
+
+// ---- first-unit pricing (UCLA NK cytotoxicity: $633.70 first sample, $423.80 each additional)
+const ucla = offer("immunoonc", "UCLA Immune Assessment Core (NK cell cytotoxicity)");
+const t1 = L.pickTier(ucla, "external", 1).t;
+check("lineCost: 1 sample = first-unit price", near(L.lineCost(t1, 1), 633.7));
+check("lineCost: 5 samples = 633.70 + 4 x 423.80 = 2328.90", near(L.lineCost(t1, 5), 2328.9));
+check("lineCost: ordinary tier unchanged", L.lineCost({ price: 5 }, 20) === 100);
+check("rowsFor total uses first-unit pricing", near(L.rowsFor("immunoonc", ST({ qty: 5 })).find(r => r.o === ucla).total, 2328.9));
+check("unit is the average per sample", near(L.rowsFor("immunoonc", ST({ qty: 5 })).find(r => r.o === ucla).unit, 465.78));
+check("quote-only offers still have no total", L.rowsFor("immunoonc", ST({ qty: 5 })).some(r => r.total === null));
+check("UCLA rate applies to both academic and industry users", L.pickTier(ucla, "industry", 2).exact === true);
+check("planner counts the first-unit price", near(L.planCalc([{ service: "immunoonc", qty: 3 }], "external").mix, 633.7 + 2 * 423.8));
+check("curve uses first-unit pricing too", (() => { const c = L.curveSeries(L.rowsFor("immunoonc", ST({ scope: "full" })), "external", 1); return c === null; })());
+check("quote check compares against the average public price per sample", L.quoteCheck(ucla, { price: 2328.9, units: 5, currency: "USD" }, "external", null).startsWith("in line"));
+check("csv total includes the first-unit price", (() => { const csv = L.csvFor([{ s: window.SERVICES.find(s => s.id === "immunoonc"), rows: L.rowsFor("immunoonc", ST({ qty: 5 })) }], ST({ qty: 5 })); return csv.includes("2328.9"); })());
+
+// ---- offers added 2026-10-27
+const iowa = offer("amplicon", "University of Iowa Microbiome Core");
+check("Iowa: 50 samples = $56.30", L.pickTier(iowa, "external", 50).t.price === 56.3);
+check("Iowa: 100 samples = $44.30; 200 = $34.70; 300 = $30.30", [100, 200, 300].map(n => L.pickTier(iowa, "external", n).t.price).join() === "44.3,34.7,30.3");
+check("Iowa: industry users get the external rate, flagged", L.pickTier(iowa, "industry", 10).exact === false);
+check("Iowa: volume tip at 90 samples (93 costs less in total)", (() => { const tip = L.volumeTip(iowa, L.pickTier(iowa, "external", 90), 90); return tip && tip.minQty === 93 && near(tip.total, 93 * 44.3); })());
+const weill = offer("amplicon", "Weill Cornell Microbiome Core");
+check("Weill Cornell: $110 for any outside user", L.pickTier(weill, "industry", 1).t.price === 110 && L.pickTier(weill, "industry", 1).exact);
+const nw = offer("ic50", "Northwestern Developmental Therapeutics Core");
+check("Northwestern IC50: $400 academic, $525 commercial", L.pickTier(nw, "external", 1).t.price === 400 && L.pickTier(nw, "industry", 1).t.price === 525);
+check("IC50 now has two priced offers; cheapest at 3 compounds is NYU", (r => r.length === 2 && L.bestValue(r).cheapest.o.provider.startsWith("NYU"))(L.rowsFor("ic50", ST({ qty: 3 }))));
+check("Oregon State prep is partial scope and never cheapest RNA-seq", (() => { const r = L.rowsFor("rnaseq", ST()); return r.find(x => x.o.provider.startsWith("Oregon State")).o.partial && L.bestValue(r).cheapest.o.provider.includes("Plasmidsaurus"); })());
 
 console.log(fail ? "\n" + fail + " FAILED" : "\nall passed");
 process.exit(fail ? 1 : 0);

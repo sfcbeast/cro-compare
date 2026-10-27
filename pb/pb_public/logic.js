@@ -8,9 +8,14 @@
   const SYM = { USD: "$", EUR: "€", GBP: "£", CAD: "C$" };
 
   const usd = (t, v) => v * FX_TO_USD[t.currency];
-  const fmt = (cur, v) => SYM[cur] + v.toLocaleString("en-US", {
-    minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: 2
-  });
+  // Cost of `qty` units under one tier, in the tier's own currency. A tier may carry `first`: the price of the
+  // first unit when it differs from the rest (for example "$633.70 for the first sample, $423.80 each additional").
+  const lineCost = (t, qty) => (t.first != null ? t.first + (qty - 1) * t.price : t.price * qty);
+  // Round to cents first: 34.7 * 200 is 6940.000000000001 in floating point and must still read "$6,940".
+  const fmt = (cur, v) => {
+    const c = Math.round(v * 100) / 100;
+    return SYM[cur] + c.toLocaleString("en-US", { minimumFractionDigits: Number.isInteger(c) ? 0 : 2, maximumFractionDigits: 2 });
+  };
 
   // ---- tiers -------------------------------------------------------------
   // Pick the tier that applies to this user type and quantity. `exact:false` means an external rate was
@@ -38,16 +43,16 @@
   function tierTable(offer) {
     return offer.tiers.slice().sort((a, b) =>
       ["external", "industry", "any"].indexOf(a.for) - ["external", "industry", "any"].indexOf(b.for) || (a.minQty || 1) - (b.minQty || 1))
-      .map(t => ({ who: AUD_LABEL[t.for], from: t.minQty || 1, price: t.price, currency: t.currency, label: t.label || "" }));
+      .map(t => ({ who: AUD_LABEL[t.for], from: t.minQty || 1, price: t.price, first: t.first, currency: t.currency, label: t.label || "" }));
   }
 
   // If ordering more unlocks a bulk tier whose total is lower than the current total, return it.
   function volumeTip(offer, pick, qty) {
     if (!pick || pick.t.priceHigh) return null;
-    const cur = pick.t.price * qty;
+    const cur = lineCost(pick.t, qty);
     let best = null;
     offer.tiers.filter(t => t.for === pick.t.for && t.currency === pick.t.currency && (t.minQty || 1) > qty).forEach(t => {
-      const total = t.price * t.minQty;
+      const total = lineCost(t, t.minQty);
       if (total < cur && (!best || total < best.total)) best = { minQty: t.minQty, total, current: cur, currency: pick.t.currency };
     });
     return best;
@@ -81,8 +86,8 @@
         && (svcHit || providerMatches(o, q)))
       .map(o => {
         const pick = pickTier(o, st.aud, st.qty);
-        const unit = pick ? usd(pick.t, pick.t.price) : null;
-        const total = unit == null ? null : unit * st.qty;
+        const total = pick ? usd(pick.t, lineCost(pick.t, st.qty)) : null;
+        const unit = total == null ? null : total / st.qty; // average per unit, in USD
         return { o, pick, unit, total, overBudget: !!(st.budget > 0 && total != null && total > st.budget) };
       });
   }
@@ -125,7 +130,7 @@
     const maxN = Math.min(1000, Math.max(100, qty * 2));
     const series = lines.map(r => {
       const pts = [];
-      for (let n = 1; n <= maxN; n++) { const p = pickTier(r.o, aud, n); pts.push([n, n * usd(p.t, p.t.price)]); }
+      for (let n = 1; n <= maxN; n++) { const p = pickTier(r.o, aud, n); pts.push([n, usd(p.t, lineCost(p.t, n))]); }
       return { name: r.o.provider, pts };
     });
     const maxY = Math.max(...series.map(x => x.pts[x.pts.length - 1][1]));
@@ -138,7 +143,7 @@
       l, svc: SERVICES.find(s => s.id === l.service),
       opts: OFFERS.filter(o => o.service === l.service && o.verified && !o.partial).map(o => {
         const pk = pickTier(o, aud, l.qty);
-        return pk && !pk.t.priceHigh ? { o, t: pk.t, cost: l.qty * usd(pk.t, pk.t.price) } : null;
+        return pk && !pk.t.priceHigh ? { o, t: pk.t, cost: usd(pk.t, lineCost(pk.t, l.qty)) } : null;
       }).filter(Boolean).sort((a, b) => a.cost - b.cost)
     }));
     const priced = rows.filter(r => r.opts.length), missing = rows.filter(r => !r.opts.length);
@@ -157,7 +162,7 @@
     const per = q.price / (q.units || 1) * FX_TO_USD[q.currency];
     const pk = offer && !offer.partial && pickTier(offer, aud, q.units || 1);
     let ref = null, label = "";
-    if (pk && !pk.t.priceHigh) { ref = usd(pk.t, pk.t.price); label = "their public price"; }
+    if (pk && !pk.t.priceHigh) { ref = usd(pk.t, lineCost(pk.t, q.units || 1)) / (q.units || 1); label = "their public price"; }
     else if (communityMedian != null) { ref = communityMedian; label = "the community median"; }
     if (!ref) return "";
     const ratio = per / ref, note = ` (about ${fmt("USD", ref)} per unit)`;
@@ -209,11 +214,11 @@
     groups.forEach(({ s, rows }) => rows.forEach(({ o, pick }) => {
       const t = pick && pick.t;
       lines.push([s.name, o.provider, o.type, o.country, st.aud, st.qty, t ? t.price : "", t ? t.currency : "quote only",
-        t ? +(t.price * st.qty).toFixed(2) : "", o.partial ? "yes" : "", o.turn || "", o.checked || data.VERIFIED_ON, o.source].map(q).join(","));
+        t ? +lineCost(t, st.qty).toFixed(2) : "", o.partial ? "yes" : "", o.turn || "", o.checked || data.VERIFIED_ON, o.source].map(q).join(","));
     }));
     return lines.join("\n");
   }
 
-  return { usd, fmt, pickTier, entryTier, tierTable, volumeTip, REGIONS, regionOf, TYPES, serviceVisible, rowsFor, sortRows, bestValue,
+  return { usd, fmt, lineCost, pickTier, entryTier, tierTable, volumeTip, REGIONS, regionOf, TYPES, serviceVisible, rowsFor, sortRows, bestValue,
     serviceStats, curveSeries, planCalc, quoteCheck, median, communityStats, REQUEST_FIELDS, askList, briefText, csvFor, AUD_LABEL };
 });
