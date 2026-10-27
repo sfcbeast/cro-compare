@@ -14,7 +14,7 @@ window.SERVICES = [
   { id: "screen", name: "Plate-based cell screening", category: "Cell-based assays", unit: "per plate" },
   { id: "viability", name: "Cell viability / proliferation assay", category: "Cell-based assays", unit: "quote" },
   { id: "reporter", name: "Reporter / nuclear receptor assay", category: "Cell-based assays", unit: "quote" },
-  { id: "immunoonc", name: "Immuno-oncology cell assays", category: "Cell-based assays", unit: "quote" }
+  { id: "immunoonc", name: "Immuno-oncology cell assays", category: "Cell-based assays", unit: "per sample" }
 ];
 
 window.OFFERS = [
@@ -166,7 +166,36 @@ window.OFFERS = [
   // ---- Plate-based cell screening ----
   { service: "screen", provider: "University of Pittsburgh Organoid Research Core", type: "Core facility", country: "US", verified: true, checked: "2026-10-12", tiers: [],
     note: "Compound screening on patient-derived organoids; price not published (contact via iLab). Organoid vials $300 academic / $354 external; culture plate $100.",
-    source: "https://organoids.pitt.edu/services-and-pricing" }
+    source: "https://organoids.pitt.edu/services-and-pricing" },
+
+  // ===== Added 2026-10-27 (each read on the provider's own page or fee schedule) =====
+  // ---- 16S / ITS amplicon ----
+  { service: "amplicon", provider: "Weill Cornell Microbiome Core", type: "Core facility", country: "US", verified: true, checked: "2026-10-27",
+    tiers: [{ for: "any", price: 110, label: "Starting price for unaffiliated customers." }],
+    note: "Includes DNA extraction, V4-V5 library prep and MiSeq 2x250 sequencing. The page does not say whether analysis is included; larger orders may get a discount.",
+    source: "https://www.microbiome.weill.cornell.edu/16s-sequencing" },
+  { service: "amplicon", provider: "University of Iowa Microbiome Core", type: "Core facility", country: "US", verified: true, checked: "2026-10-27",
+    tiers: [{ for: "external", price: 56.3 }, { for: "external", price: 44.3, minQty: 93 }, { for: "external", price: 34.7, minQty: 190 }, { for: "external", price: 30.3, minQty: 285 }],
+    note: "External rate, library prep and sequencing on Element AVITI24. Initial analysis (ASV table) is $738 per project extra. The page does not name 16S or ITS, but ASV analysis points to amplicon work. It is titled 2026 prices but dated January 2024; confirm with the core.",
+    source: "https://microbiomecore.sites.uiowa.edu/node/11" },
+
+  // ---- RNA-seq (library prep only) ----
+  { service: "rnaseq", provider: "Oregon State CQLS (Lexogen QuantSeq 3' mRNA library prep)", type: "Core facility", country: "US", verified: true, checked: "2026-10-27",
+    tiers: [{ for: "external", price: 131.56 }, { for: "industry", price: 131.56 }],
+    partial: true, note: "Library prep only, at 1x reactions. A separate setup fee also applies; its amount is not on this page.",
+    source: "https://cqls.oregonstate.edu/service-fee/illi11412-12" },
+
+  // ---- Cytotoxicity / IC50 ----
+  { service: "ic50", provider: "Northwestern Developmental Therapeutics Core", type: "Core facility", country: "US", verified: true, checked: "2026-10-27",
+    tiers: [{ for: "external", price: 400 }, { for: "industry", price: 525 }],
+    note: "Per compound per cell line, 8 concentrations. Non-Northwestern academic and commercial rates from the page's FY25 rate sheet; confirm current rates with the core.",
+    source: "https://dtcore.northwestern.edu/rates" },
+
+  // ---- Immuno-oncology cell assays ----
+  { service: "immunoonc", provider: "UCLA Immune Assessment Core (NK cell cytotoxicity)", type: "Core facility", country: "US", verified: true, checked: "2026-10-27",
+    tiers: [{ for: "any", price: 423.8, first: 633.7 }],
+    note: "NK cell cytotoxicity: $633.70 for the first sample, $423.80 for each additional. External rate on the fee schedule effective January 1, 2026, which does not separate academic from commercial users. Reagents are charged at cost.",
+    source: "https://www.uclahealth.org/sites/default/files/documents/64/combined-feb2026-iac-fee-schedule-v2.pdf" }
 ];
 
 // default currency for tiers that don't specify one
